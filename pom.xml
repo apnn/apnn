@@ -1,24 +1,14 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <artifactId>k3nn</artifactId>
-    <groupId>io.github.k3nn</groupId>
-    <version>0.02-SNAPSHOT</version>
+    <artifactId>apnn</artifactId>
+    <groupId>io.github.repir</groupId>
+    <version>0.01-SNAPSHOT</version>
     <packaging>jar</packaging>
-    <name>k3nn</name>
-    <url>https://k3nn.github.io</url>
+    <name>apnn</name>
+    <url>https://apnn.github.io</url>
   
-    <description>Implementation of 3NN K-Nearest Neighbor clustering 
-        as described in [1], to identify salient information as 
-        the 2-degenerate cores from a clustering graph containing 
-        information nodes that are linked to their 3-nearest neighbors, 
-        and qualifying sentences that outrank previously selected 
-        sentences using a relevance model of salient information seen 
-        over a recent time interval.
-
-        [1] JBP Vuurens, AP de Vries, R Blanco, P Mika, 
-        "Online News Tracking for Ad-Hoc Information Needs",
-        in ICTIR 2015.
+    <description>Approximate Nearest Neighbor
     </description>
     
     <licenses>
@@ -38,9 +28,9 @@
     </developers>
     
     <scm>
-        <connection>scm:git:git@github.com:k3nn/k3nn.git</connection>
-        <developerConnection>scm:git:git@github.com:k3nn/k3nn.git</developerConnection>
-        <url>git@github.com:k3nn/k3nn.git</url>
+        <connection>scm:git:git@github.com:apnn/apnn.git</connection>
+        <developerConnection>scm:git:git@github.com:apnn/apnn.git</developerConnection>
+        <url>git@github.com:apnn/apnn.git</url>
     </scm>
 
     <properties>
@@ -176,8 +166,22 @@
             </exclusions>
             <type>jar</type>
         </dependency>
+        <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-client</artifactId>
+        </dependency>
     </dependencies>
     
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.apache.hadoop</groupId>
+                <artifactId>hadoop-client</artifactId>
+                <version>2.6.0</version>
+            </dependency>
+        </dependencies> 
+    </dependencyManagement>
+
     <distributionManagement>
         <snapshotRepository>
             <id>oss.sonatype.org</id>

@@ -59,7 +59,6 @@ public class MinHash {
                 result[i] = Math.min(result[i], hashcode ^ hash[i]);
             }
         }
-        log.info("getMinHash %d %s", document.getId(), ArrayTools.toString(result));
         return result;
     }
     

@@ -43,7 +43,7 @@ public class AnnMinHash extends AnnIndex<int[]> {
     }
 
     @Override
-    protected HashSet<Document> getDocuments(int[] minHash) {
+    protected HashSet<Document> getDocuments(int[] minHash, Document document) {
        HashSet<Document> documents = new HashSet();
        for (int i = 0; i < minHash.length; i++) {
            FHashMapIntList<Document> minHashtable = minHashTables[i];

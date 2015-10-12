@@ -24,7 +24,7 @@ public abstract class AnnIndex<T> {
 
     protected abstract void addDocument(Document document, T fingerprint);
 
-    protected abstract HashSet<Document> getDocuments(T fingerprint);
+    protected abstract HashSet<Document> getDocuments(T fingerprint, Document document);
 
     public TopKMap<Double, Document> getNNsAndAdd(Document document, int k) {
         T fingerprint = getFingerPrint(document);
@@ -46,7 +46,7 @@ public abstract class AnnIndex<T> {
 
     private TopKMap<Double, Document> getNNs(Document document, T fingerprint, int k) {
         TopKMap<Double, Document> topk = new TopKMap(k);
-        HashSet<Document> documents = getDocuments(fingerprint);
+        HashSet<Document> documents = getDocuments(fingerprint, document);
         for (Document candidate : documents) {
             double score = similarityFunction.similarity(document, candidate);
             topk.add(score, candidate);

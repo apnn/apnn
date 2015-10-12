@@ -17,12 +17,16 @@ import java.io.IOException;
  * Note that for this example on PAN11 this requires more than 4G memory.
  * @author jeroen
  */
-public class TestMinH extends TestGeneric {
+public class TestMinHash extends TestGeneric {
 
-    public static Log log = new Log(TestMinH.class);
+    public static Log log = new Log(TestMinHash.class);
 
-    public TestMinH(HPath sourcePath, HPath suspiciousPath, Datafile similarityFile) throws IOException, ClassNotFoundException {
-        setupOutput(similarityFile);
+    public TestMinHash(HPath sourcePath, 
+            HPath suspiciousPath, 
+            Datafile resultFile) 
+            throws IOException, ClassNotFoundException {
+        
+        setupOutput(resultFile);
         loadSourceDocuments(sourcePath);
         streamSuspiciousDocuments(suspiciousPath);
         closeOutput();
@@ -35,14 +39,15 @@ public class TestMinH extends TestGeneric {
 
     @Override
     public AnnIndex getIndex() throws ClassNotFoundException {
-        return new AnnMinHash(new CosineSimilarity(), 240, 5);
+        // this implementation is fixed for now with hashFunctions=240 and bandwidth=2
+        return new AnnMinHash(new CosineSimilarity(), 240, 2);
     }
     
     public static void main(String[] args) throws IOException, ClassNotFoundException {
-        ArgsParser ap = new ArgsParser(args, "source suspicious output");
-        FSPath source = new FSPath(ap.get("source"));
-        FSPath suspicious = new FSPath( ap.get("suspicious"));
+        ArgsParser ap = new ArgsParser(args, "sourcepath suspiciouspath output");
+        FSPath source = new FSPath(ap.get("sourcepath"));
+        FSPath suspicious = new FSPath( ap.get("suspiciouspath"));
         Datafile output = new Datafile(ap.get("output"));
-        new TestMinH(source, suspicious, output);
+        new TestMinHash(source, suspicious, output);
     }
 }

@@ -7,6 +7,7 @@ import io.github.htools.io.buffer.BufferReaderWriter;
 import io.github.htools.io.compressed.ArchiveEntry;
 import io.github.htools.lib.MathTools;
 import io.github.htools.search.ByteSearch;
+import io.github.htools.type.TermVectorEntropy;
 import io.github.htools.type.TermVectorInt;
 import java.io.IOException;
 import java.util.Collection;
@@ -25,7 +26,7 @@ public class Document extends Writable {
     static ByteSearch docNumber = ByteSearch.create("\\d+");
 
     int docid;
-    TermVectorInt model = new TermVectorInt();
+    TermVectorInt model = new TermVectorEntropy();
     
     public Document(ArchiveEntry entry) throws IOException {
         this(getDocNumber(entry.getName()), entry.readAll());

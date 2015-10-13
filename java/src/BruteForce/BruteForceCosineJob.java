@@ -1,6 +1,5 @@
-package BruteForceCosine;
+package BruteForce;
 
-import SimilarityFunction.NormalizedInformationGain;
 import TestGenericMR.TestGenericJob;
 import io.github.htools.lib.Log;
 import io.github.htools.hadoop.Conf;
@@ -21,14 +20,14 @@ import io.github.htools.hadoop.Conf;
  *
  * @author Jeroen
  */
-public class BruteForceIGJob {
+public class BruteForceCosineJob {
 
-    private static final Log log = new Log(BruteForceIGJob.class);
+    private static final Log log = new Log(BruteForceCosineJob.class);
 
     public static void main(String[] args) throws Exception {
 
         Conf conf = new Conf(args, "sourcepath suspiciouspath output");
-        conf.setTaskTimeout(1800000);
+        conf.setTaskTimeout(1000000);
         
         TestGenericJob job = new TestGenericJob(conf,
                 conf.get("sourcepath"),
@@ -36,9 +35,9 @@ public class BruteForceIGJob {
                 conf.get("output"));
         
         // configuration example (used as default):
-        job.setTopK(1000);
-        job.setSimilarityFunction(NormalizedInformationGain.class);
-
+        job.setTopK(100000);
+        // job.setSimilarityFunction(CosineSimilarity.class);
+        
         job.waitForCompletion(true);
     }
 }

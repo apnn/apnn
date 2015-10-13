@@ -15,7 +15,7 @@ public class NormalizedInformationGain implements SimilarityFunction {
     @Override
     public double similarity(Document a, Document b) {
        count++;
-       return ((TermVectorEntropy)a.getModel()).ignorm((TermVectorEntropy)b.getModel());
+       return 1 - ((TermVectorEntropy)a.getModel()).ignorm((TermVectorEntropy)b.getModel());
     }
 
     @Override

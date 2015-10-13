@@ -71,7 +71,6 @@ public class TestGenericJob extends Job {
         // By default use CosineSimilarity to score the similarity between documents
         setSimilarityFunction(CosineSimilarity.class);
         // k-most similar documents to retrieve
-        setTopK(100);
     }
 
     /**
@@ -115,7 +114,7 @@ public class TestGenericJob extends Job {
      * default=100
      */
     public static int getTopK(Configuration conf) {
-        return conf.getInt(TOPK, 100);
+        return conf.getInt(TOPK, 100000);
     }
 
     /**

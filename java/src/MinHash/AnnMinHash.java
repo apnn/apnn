@@ -55,7 +55,7 @@ public class AnnMinHash extends AnnIndex<int[]> {
     }
 
     @Override
-    protected int[] getFingerPrint(Document document) {
+    protected int[] getFingerprint(Document document) {
         return minhash.getMinHash(document);
     }
 }

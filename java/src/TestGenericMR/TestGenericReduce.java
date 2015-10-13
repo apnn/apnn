@@ -33,7 +33,7 @@ public class TestGenericReduce extends Reducer<IntWritable, SimilarityWritable, 
     @Override
     public void setup(Context context) throws IOException {
         conf = ContextTools.getConfiguration(context);
-        k = conf.getInt("topk", 100);
+        k = TestGenericJob.getTopK(conf);
 
         // setup a single SimilarityFile that contains the k-most similar source
         // documents for a given suspicious document

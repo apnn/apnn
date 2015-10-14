@@ -42,10 +42,10 @@ public class SimilarityDistribution {
                 values.add(list.get(position));
             }
         }
-        for (int i = 0; i < positions.size(); i++) {
-            double[] quartiles = DoubleTools.quartiles(positions.get(i));
-            log.printf("%d %f %f %f %f %f", i, quartiles[2], quartiles[3], quartiles[1], 
-                    quartiles[4], quartiles[0]);
-        }
+//        for (int i = 0; i < positions.size(); i++) {
+//            double[] quartiles = DoubleTools.quartiles(positions.get(i));
+//            log.printf("%d %f %f %f %f %f", i, quartiles[2], quartiles[3], quartiles[1], 
+//                    quartiles[4], quartiles[0]);
+//        }
     }
 }

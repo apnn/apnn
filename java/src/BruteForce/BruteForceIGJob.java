@@ -37,7 +37,7 @@ public class BruteForceIGJob {
                 conf.get("suspiciouspath"),
                 conf.get("output"));
 
-        job.setTopK(100000);
+        job.setTopK(100);
         job.setSimilarityFunction(NormalizedInformationGain.class);
 
         job.waitForCompletion(true);

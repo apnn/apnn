@@ -114,7 +114,7 @@ public class TestGenericJob extends Job {
      * default=100
      */
     public static int getTopK(Configuration conf) {
-        return conf.getInt(TOPK, 100000);
+        return conf.getInt(TOPK, 100);
     }
 
     /**

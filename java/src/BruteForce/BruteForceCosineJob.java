@@ -35,7 +35,7 @@ public class BruteForceCosineJob {
                 conf.get("output"));
         
         // configuration example (used as default):
-        job.setTopK(100000);
+        job.setTopK(100);
         // job.setSimilarityFunction(CosineSimilarity.class);
         
         job.waitForCompletion(true);

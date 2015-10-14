@@ -146,6 +146,11 @@ public class TestGenericMap extends Mapper<Integer, Value, IntWritable, Similari
             return null;
         }
 
+        @Override
+        public void remove() {
+            throw new UnsupportedOperationException("Not supported.");
+        }
+
     }
 
     public Configuration getConf() {

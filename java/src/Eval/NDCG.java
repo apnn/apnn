@@ -2,7 +2,6 @@ package Eval;
 
 import io.github.htools.hadoop.Conf;
 import io.github.htools.io.Datafile;
-import io.github.htools.lib.ArgsParser;
 import io.github.htools.lib.Log;
 import io.github.htools.lib.MathTools;
 import java.io.IOException;
@@ -37,10 +36,10 @@ public class NDCG extends Metric {
      */
     private double dcg(SuspiciousDocument optimalResult, SuspiciousDocument retrievedResult) {
         double dcg = 0;
-        for (SourceDocument document : retrievedResult.relevantDocuments.values()) {
+        for (SourceDocument document : retrievedResult.relevantDocuments) {
             // positions count from 0
             if (document.position < getK()) {
-                SourceDocument gt = optimalResult.relevantDocuments.get(document.docid);
+                SourceDocument gt = optimalResult.relevantDocuments.get(document);
                 if (gt != null) {
                     if (document.position == 0) {
                         dcg += gt.relevanceGrade;
@@ -70,7 +69,7 @@ public class NDCG extends Metric {
                 conf.getFSFile("results");
         int k = conf.getInt("k", 10);
         NDCG metric = new NDCG(groundtruth, k);
-        HashMap<Integer, Double> score = metric.score(results);
+        HashMap<Document, Double> score = metric.score(results);
         double ndcg = metric.mean(score);
         log.info("n=%d ndcg=%f", score.size(), ndcg);
     }

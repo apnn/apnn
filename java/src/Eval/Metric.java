@@ -2,10 +2,14 @@ package Eval;
 
 import SimilarityFile.SimilarityFile;
 import SimilarityFile.SimilarityWritable;
+import io.github.htools.fcollection.FHashSet;
 import io.github.htools.io.Datafile;
 import io.github.htools.lib.DoubleTools;
 import io.github.htools.lib.Log;
+import io.github.htools.lib.MathTools;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.Set;
 
 /**
  * A generic class to compute an evaluation metric over a set of retrieved
@@ -25,11 +29,11 @@ public abstract class Metric {
 
     public static Log log = new Log(Metric.class);
     private int k;
-    private HashMap<Integer, SuspiciousDocument> groundtruth;
+    private FHashSet<SuspiciousDocument> groundTruth;
 
     public Metric(Datafile groundtruthFile, int k) {
         this.k = k;
-        groundtruth = loadFile(groundtruthFile);
+        groundTruth = loadFile(groundtruthFile);
     }
 
     /**
@@ -49,7 +53,7 @@ public abstract class Metric {
      * neighbors
      */
     public double score(SuspiciousDocument retrievedDocument) {
-        SuspiciousDocument gt = groundtruth.get(retrievedDocument.docid);
+        SuspiciousDocument gt = groundTruth.get(retrievedDocument);
         if (gt != null) {
             return score(gt, retrievedDocument);
         } else {
@@ -57,6 +61,10 @@ public abstract class Metric {
         }
     }
 
+    public Set<SuspiciousDocument> getGroundTruth() {
+        return Collections.unmodifiableSet(groundTruth);
+    }
+    
     /**
      * @return k as in metric@k to restrict the top-k ranks considered. 
      */
@@ -69,12 +77,12 @@ public abstract class Metric {
      * @return a map of scored documents (id, score) for the retrieved nearest
      * neighbors in the given file.
      */
-    public HashMap<Integer, Double> score(Datafile resultFile) {
-        HashMap<Integer, Double> results = new HashMap();
-        HashMap<Integer, SuspiciousDocument> scoredDocuments = loadFile(resultFile);
-        for (SuspiciousDocument scored : scoredDocuments.values()) {
+    public HashMap<Document, Double> score(Datafile resultFile) {
+        HashMap<Document, Double> results = new HashMap();
+        FHashSet<SuspiciousDocument> retrievedDocuments = loadFile(resultFile);
+        for (SuspiciousDocument scored : retrievedDocuments) {
             double score = score(scored);
-            results.put(scored.docid, score);
+            results.put(scored, score);
         }
         return results;
     }
@@ -83,23 +91,23 @@ public abstract class Metric {
      * @param scores map of scored documents (id, score)
      * @return the mean metric over the scored documents
      */
-    public double mean(HashMap<Integer, Double> scores) {
+    public double mean(HashMap<Document, Double> scores) {
         return DoubleTools.mean(scores.values());
     }
 
     /**
-     * Load the ground truth file
-     *
-     * @param groundtruthFile
+     * @param file a SimilarityFile (e.g. ground truth or a results file)
+     * @return a Set of the SuspiciousDocuments in the SimilarityFile with
+     * the list of nearest neighbor SourceDocuments.
      */
-    public HashMap<Integer, SuspiciousDocument> loadFile(Datafile groundtruthFile) {
-        HashMap<Integer, SuspiciousDocument> map = new HashMap();
-        SimilarityFile similarityFile = new SimilarityFile(groundtruthFile);
+    public FHashSet<SuspiciousDocument> loadFile(Datafile file) {
+        FHashSet<SuspiciousDocument> map = new FHashSet(11100); // prevent rehashing
+        SimilarityFile similarityFile = new SimilarityFile(file);
         for (SimilarityWritable similarity : similarityFile) {
             SuspiciousDocument gt = map.get(similarity.id);
             if (gt == null) {
                 gt = new SuspiciousDocument(similarity);
-                map.put(similarity.id, gt);
+                map.add(gt);
             }
             gt.add(similarity);
         }
@@ -118,15 +126,41 @@ public abstract class Metric {
     protected abstract int getNextRelevanceGrade(SuspiciousDocument suspiciousDoucment,
             double score);
 
-    protected class SuspiciousDocument {
+    public class Document {
 
         public int docid;
-        public HashMap<Integer, SourceDocument> relevantDocuments = new HashMap();
+        
+        @Override
+        public int hashCode() {
+            return MathTools.hashCode(docid);
+        }
+        
+        @Override
+        public boolean equals(Object o) {            
+            return (o instanceof Document) && ((Document)o).docid == docid;
+        }
+        
+        public String toString() {
+            return "Doc " + docid;
+        }
+    }
+    
+    public class SuspiciousDocument extends Document {
+
+        public FHashSet<SourceDocument> relevantDocuments = new FHashSet();
 
         public SuspiciousDocument(SimilarityWritable similarity) {
             this.docid = similarity.id;
         }
 
+        public SourceDocument getSourceDocument(int sourceDocumentId) {
+            return relevantDocuments.get(sourceDocumentId);
+        }
+        
+        public SourceDocument getSourceDocument(SourceDocument sourceDocument) {
+            return relevantDocuments.get(sourceDocument.docid);
+        }
+        
         /**
          * Add a nearest neighbor from the ground truth, unless already k
          * nearest neighbors were registered for this document.
@@ -140,14 +174,13 @@ public abstract class Metric {
                         new SourceDocument(similarity, 
                                 relevanceGrade, 
                                 relevantDocuments.size());
-                relevantDocuments.put(source.docid, source);
+                relevantDocuments.add(source);
             }
         }
     }
 
-    protected class SourceDocument {
+    public class SourceDocument extends Document {
 
-        public int docid;
         public int relevanceGrade;
         public int position;
         public double score;
@@ -162,5 +195,4 @@ public abstract class Metric {
             this.score = similarity.score;
         }
     }
-
 }

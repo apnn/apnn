@@ -40,7 +40,7 @@ public class Document extends Writable {
         this.docid = docid;
         addTerms(terms);
     }
-    
+
     /**
      * 
      * @return The collection ID for the document, which is extracted as the
@@ -50,7 +50,7 @@ public class Document extends Writable {
         return docid;
     }
     
-    protected void addTerms(Collection<String> terms) {
+    protected final void addTerms(Collection<String> terms) {
         model.addAll(terms);
     }
     

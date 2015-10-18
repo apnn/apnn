@@ -24,13 +24,18 @@ public abstract class TestGeneric {
 
     public static Log log = new Log(TestGeneric.class);
     SimilarityFile similarityFile;
-    AnnIndex index;
+    protected AnnIndex index;
     int K = 10;
 
     public TestGeneric() throws IOException, ClassNotFoundException {
+        // this is a wrong construct
         index = getIndex();
     }
 
+    public TestGeneric(AnnIndex index) throws IOException, ClassNotFoundException {
+        this.index = index;
+    }
+    
     protected void setupOutput(Datafile outputFile) throws IOException {
         similarityFile = new SimilarityFile(outputFile);
         similarityFile.openWrite();

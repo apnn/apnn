@@ -9,6 +9,7 @@ import io.github.htools.hadoop.Conf;
 import io.github.htools.hadoop.ContextTools;
 import io.github.htools.io.compressed.ArchiveFile;
 import io.github.htools.io.compressed.ArchiveEntry;
+import io.github.htools.io.compressed.TarLz4File;
 import io.github.htools.lib.Log;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -45,6 +46,7 @@ public class TestGenericMap extends Mapper<Integer, Value, IntWritable, Similari
         conf = ContextTools.getConfiguration(context);
         similarityFunction = TestGenericJob.getSimilarityFunction(conf);
         topk = TestGenericJob.getTopK(conf);
+        Document.setTokenizer(conf);
     }
 
     public SimilarityFunction getSimilarityFunction() {
@@ -62,11 +64,13 @@ public class TestGenericMap extends Mapper<Integer, Value, IntWritable, Similari
     @Override
     public void map(Integer key, Value value, Context context) throws IOException, InterruptedException {
         ArrayList<Document> sourceDocuments = readDocuments(value.sourcefile);
+        log.info("source documents %d", sourceDocuments.size());
         for (Document suspiciousDocument : iterableDocuments(value.suspiciousfile)) {
             // retrieve the k-most similar source documents to the suspicious document
             TopKMap<Double, Document> topk = new TopKMap(getTopK());
             for (Document sourceDocument : sourceDocuments) {
                 double similarity = similarity(sourceDocument, suspiciousDocument);
+                log.info("%d %d %f", suspiciousDocument.getId(), sourceDocument.getId(), similarity);
                 topk.add(similarity, sourceDocument);
             }
             
@@ -77,7 +81,7 @@ public class TestGenericMap extends Mapper<Integer, Value, IntWritable, Similari
                 double similarity = entry.getKey();
                 Document sourceDocument = entry.getValue();
                 outValue.source = sourceDocument.getId();
-                outValue.score = similarity(sourceDocument, suspiciousDocument);
+                outValue.score = similarity;
                 context.write(outKey, outValue);
             }
         }
@@ -139,7 +143,8 @@ public class TestGenericMap extends Mapper<Integer, Value, IntWritable, Similari
             try {
                 ArchiveEntry next = iterator.next();
                 if (next != null) {
-                    return new Document(next);
+                    Document document = new Document(next);
+                    return document;
                 }
             } catch (IOException ex) {
             }

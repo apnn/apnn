@@ -2,6 +2,7 @@ package TestGeneric;
 
 import SimilarityFunction.SimilarityFunction;
 import io.github.htools.collection.TopKMap;
+import io.github.htools.lib.ArrayTools;
 import io.github.htools.lib.Log;
 import java.util.HashSet;
 
@@ -95,6 +96,7 @@ public abstract class AnnIndex<T> {
     public void add(Document document) {
         T fingerprint = getFingerprint(document);
         addDocument(document, fingerprint);
+        log.info("add %d %s", document.getId(), ArrayTools.toString((int[])fingerprint));
     }
 
     private TopKMap<Double, Document> getNNs(Document document, T fingerprint, int k) {
@@ -105,13 +107,5 @@ public abstract class AnnIndex<T> {
             topk.add(score, candidate);
         }
         return topk;
-    }
-
-    /**
-     * @return the number of comparisons made in total during this runtime, to
-     * measure efficiency
-     */
-    public int getComparisons() {
-        return similarityFunction.getComparisons();
     }
 }

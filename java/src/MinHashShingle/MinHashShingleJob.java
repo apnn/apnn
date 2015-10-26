@@ -1,10 +1,9 @@
-package MinHash;
+package MinHashShingle;
 
+import MinHash.*;
 import TestAnnMR.TestAnnJob;
 import io.github.htools.lib.Log;
 import io.github.htools.hadoop.Conf;
-import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.Job;
 
@@ -25,33 +24,29 @@ import org.apache.hadoop.mapreduce.Job;
  * -b: (optional) number of hash functions to be combined in one band (default=5)
  * @author Jeroen
  */
-public class MinHashJob extends TestAnnJob {
+public class MinHashShingleJob {
 
-    private static final Log log = new Log(MinHashJob.class);
+    private static final Log log = new Log(MinHashShingleJob.class);
     public static final String MINHASHFUNCTIONS = TestAnnJob.class.getCanonicalName() + ".HashFunctions";
-    public static final String MINHASHBANDWDITH = TestAnnJob.class.getCanonicalName() + ".Bandwidth";
+    public static final String SHINGLESIZE = TestAnnJob.class.getCanonicalName() + ".ShingleSize";
 
-    public MinHashJob(Conf conf, String sources, String suspicious, String outFile) throws IOException, NoSuchMethodException, InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException {
-        super(conf, sources, suspicious, outFile);
-    }
-    
     public static void main(String[] args) throws Exception {
 
-        Conf conf = new Conf(args, "sourcepath suspiciouspath output -h [numhashfunctions] -b [bandwidth]");
+        Conf conf = new Conf(args, "sourcepath suspiciouspath output -h [numhashfunctions] -s [shinglesize]");
 
-        MinHashJob job = new MinHashJob(conf,
+        TestAnnJob job = new TestAnnJob(conf,
                 conf.get("sourcepath"),
                 conf.get("suspiciouspath"),
                 conf.get("output")
         );
         
-        job.setAnnIndex(AnnMinHash.class);
+        job.setAnnIndex(AnnMinHashShingle.class);
         
         // configuration example (used as default):
         // job.setTopK(100);
         // job.setSimilarityFunction(CosineSimilarity.class);
         setNumHashFunctions(job, conf.getInt("numhashfunctions", 240));
-        setBandwidth(job, conf.getInt("bandwidth", 1));
+        setShingleSize(job, conf.getInt("bandwidth", 9));
         
         job.waitForCompletion(true);
     }
@@ -79,8 +74,8 @@ public class MinHashJob extends TestAnnJob {
      * @param job
      * @param bandwidth
      */
-    public static void setBandwidth(Job job, int bandwidth) {
-        job.getConfiguration().setInt(MINHASHBANDWDITH, bandwidth);
+    public static void setShingleSize(Job job, int bandwidth) {
+        job.getConfiguration().setInt(SHINGLESIZE, bandwidth);
     }
 
     /**
@@ -88,7 +83,7 @@ public class MinHashJob extends TestAnnJob {
      * @return the number of hash functions to use (default=200)
      * @throws ClassNotFoundException
      */
-    public static int getBandwidth(Configuration conf) {
-        return conf.getInt(MINHASHBANDWDITH, 5);
+    public static int getShingleSize(Configuration conf) {
+        return conf.getInt(SHINGLESIZE, 5);
     }    
 }

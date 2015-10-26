@@ -3,8 +3,8 @@ package TestGenericMR;
 import SimilarityFile.SimilarityWritable;
 import SimilarityFunction.CosineSimilarity;
 import SimilarityFunction.SimilarityFunction;
-import TestAnnMR.TestAnnJob;
-import TestAnnMR.TestAnnMap;
+import io.github.htools.extract.AbstractTokenizer;
+import io.github.htools.extract.DefaultTokenizer;
 import io.github.htools.lib.Log;
 import io.github.htools.hadoop.Conf;
 import io.github.htools.hadoop.Job;
@@ -46,10 +46,13 @@ import org.apache.hadoop.mapreduce.lib.output.NullOutputFormat;
 public class TestGenericJob extends Job {
 
     private static final Log log = new Log(TestGenericJob.class);
-    public static final String SIMILARITYFUNCTIONCLASS = TestGenericJob.class.getCanonicalName() + ".SimilarityFunctionClass";
-    public static final String TOPK = TestGenericJob.class.getCanonicalName() + ".TopK";
+    public static final String TOKENIZERCLASS = TestGenericJob.class.getCanonicalName() + ".tokenizer";
+    public static final String SIMILARITYFUNCTIONCLASS = TestGenericJob.class.getCanonicalName() + ".similarityfunctionclass";
+    public static final String TOPK = TestGenericJob.class.getCanonicalName() + ".topk";
     Conf conf;
+
     public static enum COUNTERS {
+
         COMPARISON
     }
 
@@ -71,6 +74,9 @@ public class TestGenericJob extends Job {
         // By default use CosineSimilarity to score the similarity between documents
         setSimilarityFunction(CosineSimilarity.class);
         // k-most similar documents to retrieve
+        //this.setTopK(100);
+        // tokenizer to use
+        //this.setTokenizer(TokenizerRemoveStopwords.class);
     }
 
     /**
@@ -147,8 +153,35 @@ public class TestGenericJob extends Job {
         }
     }
 
+    /**
+     * Configure the implementation of DefaultTokenizer to use
+     *
+     * @param job
+     * @param clazz
+     */
+    public void setTokenizer(Class<? extends AbstractTokenizer> clazz) {
+        getConfiguration().set(TOKENIZERCLASS, clazz.getCanonicalName());
+    }
+
+    /**
+     * @param conf
+     * @return the configured tokenizer or null if not configured. The tokenizer
+     * must extend DefaultTokenizer.
+     */
+    public static Class<? extends DefaultTokenizer> getTokenizerClass(Configuration conf) {
+        String clazzname = conf.get(TOKENIZERCLASS);
+        if (clazzname != null) {
+            Class clazz = ClassTools.toClass(clazzname);
+            if (!AbstractTokenizer.class.isAssignableFrom(clazz)) {
+                log.fatal("configured tokenizer must be assignable from AbstractTokenizer ( %s )", clazzname);
+            }
+            return clazz;
+        }
+        return null;
+    }
+        
     public static void countComparison(TaskInputOutputContext conf, int count) {
         conf.getCounter(COUNTERS.COMPARISON).increment(count);
     }
-    
+
 }

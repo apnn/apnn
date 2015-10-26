@@ -24,18 +24,13 @@ public abstract class TestGeneric {
 
     public static Log log = new Log(TestGeneric.class);
     SimilarityFile similarityFile;
-    protected AnnIndex index;
+    AnnIndex index;
     int K = 10;
 
     public TestGeneric() throws IOException, ClassNotFoundException {
-        // this is a wrong construct
         index = getIndex();
     }
 
-    public TestGeneric(AnnIndex index) throws IOException, ClassNotFoundException {
-        this.index = index;
-    }
-    
     protected void setupOutput(Datafile outputFile) throws IOException {
         similarityFile = new SimilarityFile(outputFile);
         similarityFile.openWrite();
@@ -56,9 +51,9 @@ public abstract class TestGeneric {
     protected void writeSimilarities(Document suspiciousDocument,
             TopKMap<Double, Document> topKSourceDocuments) throws IOException {
         SimilarityWritable record = new SimilarityWritable();
-        record.id = suspiciousDocument.docid;
+        record.id = suspiciousDocument.getId();
         for (Map.Entry<Double, Document> entry : topKSourceDocuments.sorted()) {
-            record.source = entry.getValue().docid;
+            record.source = entry.getValue().getId();
             record.score = entry.getKey();
             record.write(similarityFile);
         }

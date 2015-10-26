@@ -66,6 +66,7 @@ public class TestAnnJob extends TestGenericJob {
      */
     public static AnnIndex getAnnIndex(SimilarityFunction function, Configuration conf) {
         String clazzname = conf.get(ANNINDEXCLASS);
+        log.info("getAnnIndex %s", clazzname);
         try {
             Class clazz = ClassTools.toClass(clazzname);
 

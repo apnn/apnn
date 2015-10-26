@@ -1,11 +1,10 @@
-package MinHash;
+package MinHashT3;
 
-import static MinHash.MinHash.log;
+import MinHash.*;
 import SimilarityFunction.SimilarityFunction;
 import TestGeneric.AnnIndex;
 import TestGeneric.Document;
 import io.github.htools.fcollection.FHashMapIntList;
-import io.github.htools.lib.ArrayTools;
 import io.github.htools.lib.Log;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.HashSet;
@@ -15,26 +14,25 @@ import org.apache.hadoop.conf.Configuration;
  * Example of how you would compute 
  * @author iloen
  */
-public class AnnMinHash extends AnnIndex<int[]> {
+public class AnnMinHashT3 extends AnnIndex<int[]> {
 
-    public static Log log = new Log(AnnMinHash.class);
-    MinHash minhash;
+    public static Log log = new Log(AnnMinHashT3.class);
+    MinHashT3 minhash;
     FHashMapIntList<Document> minHashTables[];
     
-    public AnnMinHash(SimilarityFunction similarityFunction, int numHashFunctions, int bandwidth) throws ClassNotFoundException {
+    public AnnMinHashT3(SimilarityFunction similarityFunction, int numHashFunctions, int shingleSize) throws ClassNotFoundException {
         super(similarityFunction);
-        log.info("AnnMinhash consructor");
-        initialize( numHashFunctions, bandwidth );
+        initialize( numHashFunctions, shingleSize );
     }
     
-    public AnnMinHash(SimilarityFunction function, Configuration conf) throws ClassNotFoundException {
-        this(function, MinHashJob.getNumHashFunctions(conf), MinHashJob.getBandwidth(conf));
+    public AnnMinHashT3(SimilarityFunction function, Configuration conf) throws ClassNotFoundException {
+        this(function, MinHashT3Job.getNumHashFunctions(conf), MinHashT3Job.getShingleSize(conf));
     }
     
-    private void initialize(int numHashFunctions, int bandwidth) {
-        minhash = new MinHash(numHashFunctions, bandwidth);
-        minHashTables = new FHashMapIntList[minhash.getBandCount()];
-        for (int i = 0; i < minhash.getBandCount(); i++)
+    private void initialize(int numHashFunctions, int shingleSize) {
+        minhash = new MinHashT3(numHashFunctions, shingleSize);
+        minHashTables = new FHashMapIntList[numHashFunctions];
+        for (int i = 0; i < numHashFunctions; i++)
             minHashTables[i] = new FHashMapIntList(10000);
     }
     
@@ -59,7 +57,6 @@ public class AnnMinHash extends AnnIndex<int[]> {
 
     @Override
     protected int[] getFingerprint(Document document) {
-        int[] fingerprint = minhash.getMinHash(document);
-        return fingerprint;
+        return minhash.getMinHash(document);
     }
 }

@@ -101,6 +101,7 @@ public abstract class Metric {
      * the list of nearest neighbor SourceDocuments.
      */
     public FHashSet<SuspiciousDocument> loadFile(Datafile file) {
+        file.setBufferSize(1000000);
         FHashSet<SuspiciousDocument> map = new FHashSet(11100); // prevent rehashing
         SimilarityFile similarityFile = new SimilarityFile(file);
         for (SimilarityWritable similarity : similarityFile) {

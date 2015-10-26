@@ -24,9 +24,9 @@ public class Recall extends Metric {
     @Override
     public double score(SuspiciousDocument groundtruth, SuspiciousDocument retrievedDocument) {
         int countRetrievedTopK = 0;
-        for (SourceDocument d : retrievedDocument.relevantDocuments) {
+        for (SourceDocument d : retrievedDocument.relevantDocuments.values()) {
             if (d.position < this.getK()) {
-                SourceDocument groundTruthResult = groundtruth.getSourceDocument(d);
+                SourceDocument groundTruthResult = groundtruth.getSourceDocument(d.docid);
                 if (groundTruthResult != null && groundTruthResult.position < getK()) {
                     countRetrievedTopK++;
                 }

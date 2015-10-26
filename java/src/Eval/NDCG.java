@@ -36,10 +36,10 @@ public class NDCG extends Metric {
      */
     private double dcg(SuspiciousDocument optimalResult, SuspiciousDocument retrievedResult) {
         double dcg = 0;
-        for (SourceDocument document : retrievedResult.relevantDocuments) {
+        for (SourceDocument document : retrievedResult.relevantDocuments.values()) {
             // positions count from 0
             if (document.position < getK()) {
-                SourceDocument gt = optimalResult.relevantDocuments.get(document);
+                SourceDocument gt = optimalResult.relevantDocuments.get(document.docid);
                 if (gt != null) {
                     if (document.position == 0) {
                         dcg += gt.relevanceGrade;

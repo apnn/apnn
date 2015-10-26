@@ -125,7 +125,7 @@ public class CrossValidate {
         FHashSet<SuspiciousDocument>[] folds = new FHashSet[n];
         for (int i = 0; i < n; i++)
             folds[i] = new FHashSet();
-        for (SuspiciousDocument suspiciousDocument : metric.getGroundTruth()) {
+        for (SuspiciousDocument suspiciousDocument : metric.getGroundTruth().values()) {
             int fold = suspiciousDocument.docid % n;
             folds[fold].add(suspiciousDocument);
         }

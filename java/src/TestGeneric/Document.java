@@ -1,20 +1,14 @@
 package TestGeneric;
 
 import TestGenericMR.TestGenericJob;
-import io.github.htools.extract.AbstractTokenizer;
-import io.github.htools.hadoop.io.buffered.Writable;
-import io.github.htools.io.buffer.BufferDelayedWriter;
-import io.github.htools.io.buffer.BufferReaderWriter;
 import io.github.htools.io.compressed.ArchiveEntry;
 import io.github.htools.lib.ByteTools;
-import io.github.htools.lib.ClassTools;
 import io.github.htools.lib.Log;
 import io.github.htools.lib.MathTools;
 import io.github.htools.search.ByteSearch;
 import io.github.htools.type.TermVectorEntropy;
 import io.github.htools.type.TermVectorInt;
 import java.io.IOException;
-import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import org.apache.hadoop.conf.Configuration;
 
@@ -37,7 +31,8 @@ import org.apache.hadoop.conf.Configuration;
 public class Document  {
 
     public static Log log = new Log(Document.class);
-    static AbstractTokenizer tokenizer = new TokenizerRemoveStopwords();
+    public static Tokenizer tokenizer = new TokenizerRemoveStopwords();
+    static boolean stopwordsRemoved;
     static ByteSearch docNumber = ByteSearch.create("\\d+");
 
     public int docid;
@@ -67,33 +62,17 @@ public class Document  {
         this.content = ByteTools.toBytes(content, 0, content.length);
     }
 
-    public static AbstractTokenizer getTokenizer(Class<? extends AbstractTokenizer> clazz) {
-        try {
-            Constructor<AbstractTokenizer> cons
-                    = ClassTools.getAssignableConstructor(clazz, AbstractTokenizer.class);
-            AbstractTokenizer tokenizer = ClassTools.construct(cons);
-            return tokenizer;
-        } catch (ClassNotFoundException ex) {
-            log.fatalexception(ex, "getTokenzizer( %s )", clazz.getCanonicalName());
-            return null;
-        }
-    }
-
     /**
      * If a tokenizer was configured, Document will use this tokenizer.
      *
      * @param conf
      */
     public static void setTokenizer(Configuration conf) {
-        Class<? extends AbstractTokenizer> tokenizerClass
+        Class<? extends Tokenizer> tokenizerClass
                 = TestGenericJob.getTokenizerClass(conf);
         if (tokenizerClass != null) {
-            tokenizer = getTokenizer(tokenizerClass);
+            tokenizer = Tokenizer.get(tokenizerClass);
         }
-    }
-
-    public static void setTokenizer(AbstractTokenizer tokenizer) {
-        Document.tokenizer = tokenizer;
     }
 
     /**
@@ -118,7 +97,11 @@ public class Document  {
     public TermVectorInt getModel() {
         if (model == null) {
             log.info("getModel %s", terms);
-            model = new TermVectorEntropy(terms);
+            if (!stopwordsRemoved) {
+                model = new TermVectorEntropy(tokenizer.removeStopwords(terms));
+            } else {
+                model = new TermVectorEntropy(terms);
+            }
             terms = null;
             content = null;
         }
@@ -134,8 +117,6 @@ public class Document  {
      * used after this call.
      */
     public byte[] getContent() {
-        model = null;
-        terms = null;
         return content;
     }
 
@@ -144,7 +125,6 @@ public class Document  {
      * Warning, using this will clear the getContent() representation.
      */
     public ArrayList<String> getTerms() {
-        model = null;
         content = null;
         return terms;
     }

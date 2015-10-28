@@ -14,7 +14,12 @@ public class CosineSimilarity implements SimilarityFunction {
     @Override
     public double similarity(Document a, Document b) {
         count++;
-       return a.getModel().cossim(b.getModel());
+        double cossim = a.getModel().cossim(b.getModel());
+        if (Double.isNaN(cossim) || cossim > 1) {
+            a.getModel().cossimDebug(b.getModel());
+            log.fatal("cossim %s", cossim);
+        }
+       return cossim;
     }
 
     @Override

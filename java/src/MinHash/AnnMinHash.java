@@ -1,19 +1,16 @@
 package MinHash;
 
-import static MinHash.MinHash.log;
 import SimilarityFunction.SimilarityFunction;
 import TestGeneric.AnnIndex;
 import TestGeneric.Document;
 import io.github.htools.fcollection.FHashMapIntList;
-import io.github.htools.lib.ArrayTools;
 import io.github.htools.lib.Log;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.HashSet;
 import org.apache.hadoop.conf.Configuration;
 
 /**
- * Example of how you would compute 
- * @author iloen
+ * @author Jeroen
  */
 public class AnnMinHash extends AnnIndex<int[]> {
 

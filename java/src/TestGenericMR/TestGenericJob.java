@@ -3,6 +3,7 @@ package TestGenericMR;
 import SimilarityFile.SimilarityWritable;
 import SimilarityFunction.CosineSimilarity;
 import SimilarityFunction.SimilarityFunction;
+import TestGeneric.Tokenizer;
 import io.github.htools.extract.AbstractTokenizer;
 import io.github.htools.extract.DefaultTokenizer;
 import io.github.htools.lib.Log;
@@ -168,12 +169,12 @@ public class TestGenericJob extends Job {
      * @return the configured tokenizer or null if not configured. The tokenizer
      * must extend DefaultTokenizer.
      */
-    public static Class<? extends DefaultTokenizer> getTokenizerClass(Configuration conf) {
+    public static Class<? extends Tokenizer> getTokenizerClass(Configuration conf) {
         String clazzname = conf.get(TOKENIZERCLASS);
         if (clazzname != null) {
             Class clazz = ClassTools.toClass(clazzname);
-            if (!AbstractTokenizer.class.isAssignableFrom(clazz)) {
-                log.fatal("configured tokenizer must be assignable from AbstractTokenizer ( %s )", clazzname);
+            if (!Tokenizer.class.isAssignableFrom(clazz)) {
+                log.fatal("configured tokenizer must be assignable from Tokenizer ( %s )", clazzname);
             }
             return clazz;
         }

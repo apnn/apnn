@@ -96,7 +96,6 @@ public abstract class AnnIndex<T> {
     public void add(Document document) {
         T fingerprint = getFingerprint(document);
         addDocument(document, fingerprint);
-        log.info("add %d %s", document.getId(), ArrayTools.toString((int[])fingerprint));
     }
 
     private TopKMap<Double, Document> getNNs(Document document, T fingerprint, int k) {

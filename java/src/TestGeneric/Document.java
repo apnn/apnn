@@ -96,7 +96,7 @@ public class Document  {
      */
     public TermVectorInt getModel() {
         if (model == null) {
-            log.info("getModel %s", terms);
+            //log.info("getModel %s", terms);
             if (!stopwordsRemoved) {
                 model = new TermVectorEntropy(tokenizer.removeStopwords(terms));
             } else {

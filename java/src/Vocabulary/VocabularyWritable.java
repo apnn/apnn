@@ -2,10 +2,8 @@ package Vocabulary;
 
 import io.github.htools.io.buffer.BufferDelayedWriter;
 import io.github.htools.io.buffer.BufferReaderWriter;
-import io.github.htools.lib.MathTools;
 import io.github.htools.hadoop.tsv.Writable;
 import java.io.IOException;
-import java.util.UUID;
 
 /**
  * A term with the document en term frequency in the collection

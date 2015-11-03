@@ -1,5 +1,6 @@
 package Vocabulary;
 
+import io.github.htools.collection.HashMapDouble;
 import io.github.htools.io.Datafile;
 import io.github.htools.hadoop.tsv.File;
 
@@ -23,5 +24,5 @@ public class VocabularyFile extends File<VocabularyWritable> {
     @Override
     public VocabularyWritable newRecord() {
         return new VocabularyWritable();
-    }  
+    }
 }

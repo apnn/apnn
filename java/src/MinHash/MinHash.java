@@ -21,7 +21,7 @@ public class MinHash {
     int bandwidth;
 
     public MinHash(int numHash, int bandwidth) {
-        log.info("numhash %d bandwidth %d", numHash, bandwidth);
+        //log.info("numhash %d bandwidth %d", numHash, bandwidth);
         hash = new int[numHash];
         for (int i = 1; i < numHash; i++) {
             hash[i] = random.getInt();
@@ -30,7 +30,7 @@ public class MinHash {
             log.fatal("MinHash numhash %d not a multiple of bandwidth %d", numHash, bandwidth);
         bands = numHash / bandwidth;
         this.bandwidth = bandwidth;
-        log.info("hash %s", ArrayTools.toString(hash));
+        //log.info("hash %s", ArrayTools.toString(hash));
     }
     
     /**
@@ -58,7 +58,7 @@ public class MinHash {
         for (String term : document.getModel().keySet()) {
             // the first hash function for the term
             int hashcode = MathTools.hashCode(term.hashCode());
-            log.info("term %s %d", term, hashcode);
+            //log.info("term %s %d", term, hashcode);
             result[0] = Math.min(result[0], hashcode);
             
             // iterate over the remaining (pseudo-)hash functions

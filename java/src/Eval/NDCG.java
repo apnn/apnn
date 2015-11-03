@@ -2,6 +2,7 @@ package Eval;
 
 import io.github.htools.hadoop.Conf;
 import io.github.htools.io.Datafile;
+import io.github.htools.io.HPath;
 import io.github.htools.lib.Log;
 import io.github.htools.lib.MathTools;
 import java.io.IOException;
@@ -60,17 +61,19 @@ public class NDCG extends Metric {
 
     public static void main(String[] args) throws IOException {
         Conf conf = new Conf(args, "groundtruth results -k [k] --hdfs");
-        
-        Datafile groundtruth = conf.getBoolean("hdfs", false)?
-                conf.getHDFSFile("groundtruth"):
-                conf.getFSFile("groundtruth");
-        Datafile results = conf.getBoolean("hdfs", false)?
-                conf.getHDFSFile("results"):
-                conf.getFSFile("results");
+
+        Datafile groundtruth = conf.getBoolean("hdfs", false)
+                ? conf.getHDFSFile("groundtruth")
+                : conf.getFSFile("groundtruth");
         int k = conf.getInt("k", 10);
         NDCG metric = new NDCG(groundtruth, k);
-        HashMap<Document, Double> score = metric.score(results);
-        double ndcg = metric.mean(score);
-        log.info("n=%d ndcg=%f", score.size(), ndcg);
+        HPath path = conf.getBoolean("hdfs", false)
+                ? conf.getHDFSPath("results")
+                : conf.getFSPath("results");
+        for (Datafile resultFile : path.getFiles()) {
+            HashMap<Document, Double> score = metric.score(resultFile);
+            double ndcg = metric.mean(score);
+            log.printf("%s n=%d ndcg=%f", resultFile.getName(), score.size(), ndcg);
+        }
     }
 }

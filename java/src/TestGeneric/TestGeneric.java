@@ -23,9 +23,9 @@ import java.util.Map;
 public abstract class TestGeneric {
 
     public static Log log = new Log(TestGeneric.class);
-    SimilarityFile similarityFile;
-    AnnIndex index;
-    int K = 10;
+    private SimilarityFile similarityFile;
+    protected AnnIndex index;
+    private int K = 10;
 
     public TestGeneric() throws IOException, ClassNotFoundException {
         index = getIndex();
@@ -73,6 +73,7 @@ public abstract class TestGeneric {
             ArchiveFile sourceFile = ArchiveFile.getReader(file);
             for (ArchiveEntry entry : (Iterable<ArchiveEntry>) sourceFile) {
                 Document document = new Document(entry);
+                //log.info("%d %s", document.docid, document.getTerms());
                 index.add(document);
             }
         }

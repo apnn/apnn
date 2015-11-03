@@ -4,6 +4,7 @@ import SimilarityFunction.SimilarityFunction;
 import TestGeneric.AnnIndex;
 import TestGeneric.Document;
 import io.github.htools.fcollection.FHashMapIntList;
+import io.github.htools.lib.ArrayTools;
 import io.github.htools.lib.Log;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.HashSet;
@@ -20,7 +21,7 @@ public class AnnMinHash extends AnnIndex<int[]> {
     
     public AnnMinHash(SimilarityFunction similarityFunction, int numHashFunctions, int bandwidth) throws ClassNotFoundException {
         super(similarityFunction);
-        log.info("AnnMinhash consructor");
+        log.info("AnnMinhash constructor %d %d", numHashFunctions, bandwidth);
         initialize( numHashFunctions, bandwidth );
     }
     
@@ -57,6 +58,7 @@ public class AnnMinHash extends AnnIndex<int[]> {
     @Override
     protected int[] getFingerprint(Document document) {
         int[] fingerprint = minhash.getMinHash(document);
+        //log.info("%d %s", document.docid, ArrayTools.toString(fingerprint));
         return fingerprint;
     }
 }

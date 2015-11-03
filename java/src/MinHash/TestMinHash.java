@@ -30,6 +30,7 @@ public class TestMinHash extends TestGeneric {
         loadSourceDocuments(sourcePath);
         streamSuspiciousDocuments(suspiciousPath);
         closeOutput();
+        log.info("comparisons %d", index.getSimilarityFunction().getComparisons());
     }
 
     @Override
@@ -40,7 +41,7 @@ public class TestMinHash extends TestGeneric {
     @Override
     public AnnIndex getIndex() throws ClassNotFoundException {
         // this implementation is fixed for now with hashFunctions=240 and bandwidth=2
-        return new AnnMinHash(new CosineSimilarity(), 240, 1);
+        return new AnnMinHash(new CosineSimilarity(), 100, 1);
     }
     
     public static void main(String[] args) throws IOException, ClassNotFoundException {

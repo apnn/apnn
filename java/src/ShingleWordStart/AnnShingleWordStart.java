@@ -36,6 +36,7 @@ public class AnnShingleWordStart extends AnnShingle {
             if (content[0] > 32) {
                 int hashcode = MathTools.hashCode(content, 0, shingleSize);
                 result.add(hashcode);
+                log.info("%d %d %s", document.docid, hashcode, ByteTools.toString(content, 0, shingleSize));
             }
             for (int position = shingleSize + 1; position < content.length; position++) {
                 // if the current position is no space
@@ -43,6 +44,7 @@ public class AnnShingleWordStart extends AnnShingle {
                 if (content[position - shingleSize - 1] == 32 && content[position - shingleSize] > 32) {
                     int hashcode = MathTools.hashCode(content, position - shingleSize, position);
                     result.add(hashcode);
+                    log.info("%d %d %s", document.docid, hashcode, ByteTools.toString(content, position - shingleSize, position));
                 }
             }
         }

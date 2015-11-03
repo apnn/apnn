@@ -27,11 +27,19 @@ public class VocabularyReduce extends Reducer<Text, IntWritable, NullWritable, N
     public void reduce(Text key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException {
         int documentFrequency = 0;
         int termFrequency = 0;
-        for (IntWritable entry : values) {
-            documentFrequency++;
-            termFrequency += entry.get();
+        if (key.toString().equals(VocabularyMap.COLLECTIONSIZE)) {
+            for (IntWritable entry : values) {
+                documentFrequency++;
+            }
+        } else {
+            for (IntWritable entry : values) {
+                if (entry.get() > 0) { // suspicious documents have freq=0
+                    documentFrequency++;
+                    termFrequency += entry.get();
+                }
+            }
         }
-        termmap.add(termFrequency, key.toString(), documentFrequency);
+        termmap.add(documentFrequency, key.toString(), termFrequency);
     }
 
     @Override
@@ -44,8 +52,8 @@ public class VocabularyReduce extends Reducer<Text, IntWritable, NullWritable, N
         termmap.descending();
         for (Map.Entry<Integer, Tuple2<String, Integer>> entry : termmap) {
             w.term = entry.getValue().key;
-            w.termFrequency = entry.getKey();
-            w.documentFrequency = entry.getValue().getValue();
+            w.documentFrequency = entry.getKey();
+            w.termFrequency = entry.getValue().getValue();
             w.write(vocabularyFile);
         }
         vocabularyFile.closeWrite();

@@ -2,14 +2,17 @@ package Eval;
 
 import io.github.htools.hadoop.Conf;
 import io.github.htools.io.Datafile;
+import io.github.htools.io.FSPath;
+import io.github.htools.io.HDFSPath;
+import io.github.htools.io.HPath;
 import io.github.htools.lib.Log;
 import java.io.IOException;
 import java.util.HashMap;
 
 /**
- * Computes the recall, or in this case in the absence of binary labels the fraction
- * of items in the top-k of the ground truth that are retrieved in the top-k
- * using the approach.
+ * Computes the recall, or in this case in the absence of binary labels the
+ * fraction of items in the top-k of the ground truth that are retrieved in the
+ * top-k using the approach.
  *
  * @author Jeroen
  */
@@ -37,18 +40,20 @@ public class Recall extends Metric {
 
     public static void main(String[] args) throws IOException {
         Conf conf = new Conf(args, "groundtruth results -k [k] --hdfs");
-        
-        Datafile groundtruth = conf.getBoolean("hdfs", false)?
-                conf.getHDFSFile("groundtruth"):
-                conf.getFSFile("groundtruth");
-        Datafile results = conf.getBoolean("hdfs", false)?
-                conf.getHDFSFile("results"):
-                conf.getFSFile("results");
+
+        Datafile groundtruth = conf.getBoolean("hdfs", false)
+                ? conf.getHDFSFile("groundtruth")
+                : conf.getFSFile("groundtruth");
         int k = conf.getInt("k", 10);
         Recall metric = new Recall(groundtruth, k);
-        HashMap<Document, Double> score = metric.score(results);
-        double recall = metric.mean(score);
-        log.info("n=%d recall=%f", score.size(), recall);
+        HPath path = conf.getBoolean("hdfs", false)
+                ? conf.getHDFSPath("results")
+                : conf.getFSPath("results");
+        for (Datafile resultFile : path.getFiles()) {
+            HashMap<Document, Double> score = metric.score(resultFile);
+            double recall = metric.mean(score);
+            log.printf("%s n=%d recall=%f", resultFile.getName(), score.size(), recall);
+        }
     }
 
     @Override

@@ -32,6 +32,10 @@ public abstract class AnnIndex<T> {
         this.similarityFunction = similarityFunction;
     }
 
+    public SimilarityFunction getSimilarityFunction() {
+        return similarityFunction;
+    }
+    
     /**
      * @param document
      * @return A fingerprint of generic type T for the document, or null when

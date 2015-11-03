@@ -1,5 +1,6 @@
-package Vocabulary;
+package RepackPAN11;
 
+import Vocabulary.*;
 import TestGenericMR.StringPairInputFormat;
 import io.github.htools.lib.Log;
 import io.github.htools.hadoop.Conf;
@@ -20,13 +21,13 @@ import org.apache.hadoop.mapreduce.lib.output.NullOutputFormat;
  * @author jeroen
  */
 
-public class VocabularyJob {
+public class RepackJob {
 
-    private static final Log log = new Log(VocabularyJob.class);
+    private static final Log log = new Log(RepackJob.class);
 
     public static void main(String[] args) throws Exception {
 
-        Conf conf = new Conf(args, "-i input -o output");
+        Conf conf = new Conf(args, "-i input -o output -v vocabulary");
         conf.setMapMemoryMB(4096);
         conf.setTaskTimeout(180000);
         conf.setMapSpeculativeExecution(false);
@@ -34,16 +35,12 @@ public class VocabularyJob {
         String input = conf.get("input");
         Path out = new Path(conf.get("output"));
 
-        Job job = new Job(conf, input, out);
-        job.setMaxMapAttempts(100);
+        Job job = new Job(conf, input, out, conf.get("vocabulary"));
+        job.setMaxMapAttempts(1);
         setupInput(job, input);
 
-        job.setNumReduceTasks(1);
-        job.setMapperClass(VocabularyMap.class);
-        job.setMapOutputKeyClass(Text.class);
-        job.setMapOutputValueClass(IntWritable.class);
-        job.setReducerClass(VocabularyReduce.class);
-        job.setGroupingComparatorClass(Text.Comparator.class);
+        job.setNumReduceTasks(0);
+        job.setMapperClass(RepackMap.class);
         job.setOutputFormatClass(NullOutputFormat.class);
         
         job.waitForCompletion(true);

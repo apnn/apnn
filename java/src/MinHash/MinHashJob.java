@@ -89,6 +89,6 @@ public class MinHashJob extends TestAnnJob {
      * @throws ClassNotFoundException
      */
     public static int getBandwidth(Configuration conf) {
-        return conf.getInt(MINHASHBANDWDITH, 5);
+        return conf.getInt(MINHASHBANDWDITH, 1);
     }    
 }

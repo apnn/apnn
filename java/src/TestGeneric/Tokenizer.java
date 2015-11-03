@@ -1,21 +1,24 @@
 package TestGeneric;
 
-import static TestGeneric.Document.log;
 import io.github.htools.extract.AbstractTokenizer;
 import io.github.htools.extract.DefaultTokenizer;
 import io.github.htools.extract.modules.ConvertHtmlASCIICodes;
 import io.github.htools.extract.modules.ConvertHtmlSpecialCodes;
 import io.github.htools.extract.modules.ConvertToLowercase;
 import io.github.htools.extract.modules.ConvertUnicodeDiacritics;
+import io.github.htools.extract.modules.ExtractorProcessor;
+import io.github.htools.extract.modules.RemoveDanglingS;
 import io.github.htools.extract.modules.RemoveFilteredWords;
 import io.github.htools.extract.modules.RemoveHtmlSpecialCodes;
 import io.github.htools.extract.modules.RemoveNonASCII;
-import io.github.htools.extract.modules.RemoveNonAlphanumeric;
+import io.github.htools.extract.modules.RemoveNonAlphanumericQuote;
+import io.github.htools.extract.modules.RemoveSingleQuotes;
 import io.github.htools.extract.modules.StemByteArray;
 import io.github.htools.extract.modules.StemTokens;
-import io.github.htools.extract.modules.TokenWord;
+import io.github.htools.extract.modules.TokenWordQuote;
 import io.github.htools.lib.ClassTools;
 import io.github.htools.lib.Log;
+import io.github.htools.words.StopWordsMultiLang;
 import io.github.htools.words.StopWordsSmart;
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
@@ -36,12 +39,37 @@ public class Tokenizer extends AbstractTokenizer {
 
     public static final Log log = new Log(DefaultTokenizer.class);
     static Tokenizer singleton;
-    HashSet<String> stopwords = getUnstemmedStopwords();
-    RemoveFilteredWords stopwordRemover = new RemoveFilteredWords(null, stopwords);
+    HashSet<String> stopwords;
+    RemoveFilteredWords stopwordRemover;
     StemTokens tokenStemmer = new StemTokens(null, "tokenize");
 
     public Tokenizer() {
         super();
+        HashSet<String> sw = getUnstemmedStopwords();
+        stopwords = new HashSet();
+        for (String word : sw) {
+            ArrayList<String> tokenize = tokenize(word);
+            if (tokenize.size() == 1) {
+                stopwords.add(tokenize.get(0));
+            } else {
+                for (String w : tokenize) {
+                    if (w.length() > 0) {
+                        stopwords.add(w);
+                        log.info("partial stopword %s", w);
+                    }
+                }
+            }
+        }
+        log.info("stopwords %d %s", stopwords.size(), stopwords);
+            for (ExtractorProcessor p : this.preprocess) {
+                log.info("%s", p.getClass().getCanonicalName());
+            }
+        if (stopwords.size() != 1745) {
+            
+            log.crash();
+            
+        }
+        stopwordRemover = new RemoveFilteredWords(null, stopwords);
     }
 
     public static Tokenizer get(Class<? extends Tokenizer> clazz) {
@@ -58,16 +86,16 @@ public class Tokenizer extends AbstractTokenizer {
     }
 
     protected HashSet<String> getStemmedStopwords() {
-        return StopWordsSmart.getStemmedFilterSet();
+        return StopWordsMultiLang.getStemmedFilterSet();
     }
 
     protected HashSet<String> getUnstemmedStopwords() {
-        return StopWordsSmart.getUnstemmedFilterSet();
+        return StopWordsMultiLang.getUnstemmedFilterSet();
     }
 
     @Override
     public Class getTokenMarker() {
-        return TokenWord.class;
+        return TokenWordQuote.class;
     }
 
     protected RemoveFilteredWords getStopwordRemover() {
@@ -82,10 +110,12 @@ public class Tokenizer extends AbstractTokenizer {
         this.addPreProcessor(ConvertHtmlASCIICodes.class);
         this.addPreProcessor(ConvertHtmlSpecialCodes.class);
         this.addPreProcessor(ConvertUnicodeDiacritics.class);
-        this.addPreProcessor(new RemoveNonASCII(this, true));
         this.addPreProcessor(ConvertToLowercase.class);
         this.addPreProcessor(RemoveHtmlSpecialCodes.class);
-        this.addPreProcessor(RemoveNonAlphanumeric.class);
+        this.addPreProcessor(RemoveNonAlphanumericQuote.class);
+        this.addPreProcessor(RemoveSingleQuotes.class);
+        this.addPreProcessor(RemoveDanglingS.class);
+        //this.addPreProcessor(new RemoveNonASCII(this, true));
     }
 
     @Override

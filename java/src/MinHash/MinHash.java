@@ -16,9 +16,9 @@ public class MinHash {
     // use a seeded random generator, to regenerate the same has functions
     public RandomGenerator random = RandomTools.createGenerator(1);
     
-    int[] hash;
-    int bands;
-    int bandwidth;
+    protected int[] hash;
+    protected int bands;
+    protected int bandwidth;
 
     public MinHash(int numHash, int bandwidth) {
         //log.info("numhash %d bandwidth %d", numHash, bandwidth);

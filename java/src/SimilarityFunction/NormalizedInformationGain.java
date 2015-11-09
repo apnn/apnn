@@ -2,6 +2,7 @@ package SimilarityFunction;
 
 import TestGeneric.Document;
 import io.github.htools.lib.Log;
+import io.github.htools.lib.Profiler;
 import io.github.htools.type.TermVectorEntropy;
 
 /**
@@ -10,17 +11,27 @@ import io.github.htools.type.TermVectorEntropy;
  */
 public class NormalizedInformationGain implements SimilarityFunction {
     public static Log log = new Log(NormalizedInformationGain.class);
-    int count = 0;
+    public static Profiler profiler = Profiler.getProfiler(NormalizedInformationGain.class.getCanonicalName());
 
     @Override
     public double similarity(Document a, Document b) {
-       count++;
-       return 1 - ((TermVectorEntropy)a.getModel()).ignorm((TermVectorEntropy)b.getModel());
+       profiler.startTime();
+       double result = 1 - ((TermVectorEntropy)a.getModel()).ignorm((TermVectorEntropy)b.getModel());
+       profiler.addAvgTime();
+       return result;
     }
 
     @Override
     public int getComparisons() {
-       return count;
+       return profiler.getCount();
+    }
+    
+    @Override
+    public void reweight(Document a) {}
+
+    @Override
+    public long getComparisonsTime() {
+        return profiler.getTotalTimeMs();
     }
 
 }

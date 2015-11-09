@@ -1,20 +1,22 @@
 package TestGenericMR;
 
+import SimilarityFile.MeasureSimilarity;
 import SimilarityFile.SimilarityWritable;
 import SimilarityFunction.SimilarityFunction;
+import TestGeneric.AnnIndex;
+import TestGeneric.CandidateList;
+import TestGeneric.Candidate;
 import TestGeneric.Document;
 import TestGenericMR.StringPairInputFormat.Value;
-import io.github.htools.collection.TopKMap;
 import io.github.htools.hadoop.Conf;
 import io.github.htools.hadoop.ContextTools;
 import io.github.htools.io.compressed.ArchiveFile;
 import io.github.htools.io.compressed.ArchiveEntry;
-import io.github.htools.io.compressed.TarLz4File;
 import io.github.htools.lib.Log;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Iterator;
-import java.util.Map;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.mapreduce.Mapper;
@@ -31,15 +33,15 @@ import org.apache.hadoop.mapreduce.Mapper;
  *
  * @author jeroen
  */
-public class TestGenericMap extends Mapper<Integer, Value, IntWritable, SimilarityWritable> {
+public class TestGenericMap extends Mapper<Integer, Value, IntWritable, Candidate> {
 
     public static final Log log = new Log(TestGenericMap.class);
     Conf conf;
+    AnnIndex index;
     SimilarityFunction similarityFunction;
     int topk;
 
     protected IntWritable outKey = new IntWritable();
-    protected SimilarityWritable outValue = new SimilarityWritable();
 
     @Override
     public void setup(Context context) throws IOException {
@@ -47,6 +49,7 @@ public class TestGenericMap extends Mapper<Integer, Value, IntWritable, Similari
         similarityFunction = TestGenericJob.getSimilarityFunction(conf);
         topk = TestGenericJob.getTopK(conf);
         Document.setTokenizer(conf);
+        index = TestGenericJob.getAnnIndex(getSimilarityFunction(), getComparator(), getConf());
     }
 
     public SimilarityFunction getSimilarityFunction() {
@@ -60,35 +63,44 @@ public class TestGenericMap extends Mapper<Integer, Value, IntWritable, Similari
     public int getTopK() {
         return topk;
     }
+
+    public Comparator<SimilarityWritable> getComparator() {
+        return MeasureSimilarity.singleton;
+    } 
     
     @Override
     public void map(Integer key, Value value, Context context) throws IOException, InterruptedException {
-        ArrayList<Document> sourceDocuments = readDocuments(value.sourcefile);
-        log.info("source documents %d", sourceDocuments.size());
-        for (Document suspiciousDocument : iterableDocuments(value.suspiciousfile)) {
-            // retrieve the k-most similar source documents to the suspicious document
-            TopKMap<Double, Document> topk = new TopKMap(getTopK());
-            for (Document sourceDocument : sourceDocuments) {
-                double similarity = similarity(sourceDocument, suspiciousDocument);
-                log.info("%d %d %f", suspiciousDocument.getId(), sourceDocument.getId(), similarity);
-                topk.add(similarity, sourceDocument);
-            }
-            
+        // read all source documents and add to AnnIndex
+        ArrayList<Document> sourceDocuments = readDocuments(conf, value.sourcefile, getSimilarityFunction());
+        for (Document sourceDocument : sourceDocuments) {
+            index.add(sourceDocument);
+        }
+
+        // iterate over all suspicious documents
+        for (Document suspiciousDocument : iterableDocuments(conf, value.suspiciousfile, getSimilarityFunction())) {
+            // retrieve the k most similar source documents from the index
+            CandidateList topKSourceDocuments = index.getNNs(suspiciousDocument, getTopK());
+
             // write the topk to the reducer
             outKey.set(suspiciousDocument.getId());
-            outValue.id = suspiciousDocument.getId();
-            for (Map.Entry<Double, Document> entry : topk) {
-                double similarity = entry.getKey();
-                Document sourceDocument = entry.getValue();
-                outValue.source = sourceDocument.getId();
-                outValue.score = similarity;
-                context.write(outKey, outValue);
+            for (Candidate candidate : topKSourceDocuments) {
+                candidate.id = suspiciousDocument.docid;
+                
+                // send to reducer
+                context.write(outKey, candidate);
             }
         }
     }
     
+    @Override
     public void cleanup(Context context) {
-        TestGenericJob.countComparison(context, similarityFunction.getComparisons());
+        TestGenericJob.addMeasuresCompared(context, similarityFunction.getComparisons());
+        TestGenericJob.addGetDocumentsTime(context, AnnIndex.getGetDocumentsTime(), AnnIndex.getGetDocumentsCount());
+        TestGenericJob.addGetDocCodepoints(context, index.countDocCodepoints);
+        TestGenericJob.addGetDocComparedCodepoints(context, index.countComparedDocCodepoints);
+        TestGenericJob.addFingerprintTime(context, AnnIndex.getGetFingerprintTime(), AnnIndex.getGetFingerprintCount());
+        TestGenericJob.addSimilarityFunction(context, similarityFunction.getComparisonsTime(), similarityFunction.getComparisons());
+        
     }
 
     /**
@@ -97,9 +109,12 @@ public class TestGenericMap extends Mapper<Integer, Value, IntWritable, Similari
      * the name documentFilename
      * @throws IOException
      */
-    public ArrayList<Document> readDocuments(String documentFilename) throws IOException {
+    public static ArrayList<Document> readDocuments(Configuration conf, 
+            String documentFilename, 
+            SimilarityFunction function) throws IOException {
+        
         ArrayList<Document> documents = new ArrayList();
-        for (Document document : iterableDocuments(documentFilename)) {
+        for (Document document : iterableDocuments(conf, documentFilename, function)) {
             // extract the docid from the filename (in the tar-file)
             // add to the map of documents
             documents.add(document);
@@ -115,17 +130,23 @@ public class TestGenericMap extends Mapper<Integer, Value, IntWritable, Similari
      * @return
      * @throws IOException
      */
-    public Iterable<Document> iterableDocuments(String documentFilename) throws IOException {
-        ArchiveFile archiveFile = ArchiveFile.getReader(getConf(), documentFilename);
-        return new DocumentIterator(archiveFile);
+    public static Iterable<Document> iterableDocuments(Configuration conf, String documentFilename, SimilarityFunction function) throws IOException {
+        ArchiveFile archiveFile = ArchiveFile.getReader(conf, documentFilename);
+        return new DocumentIterator(archiveFile, function);
     }
 
+    public static Document readDocument(ArchiveEntry entry) throws IOException {
+        return Document.read(entry);
+    }
+    
     static class DocumentIterator implements Iterable<Document>, Iterator<Document> {
 
         Iterator<ArchiveEntry> iterator;
+        SimilarityFunction similarityFunction;
 
-        DocumentIterator(ArchiveFile file) {
+        DocumentIterator(ArchiveFile file, SimilarityFunction function) {
             iterator = file;
+            this.similarityFunction = function;
         }
 
         @Override
@@ -143,7 +164,8 @@ public class TestGenericMap extends Mapper<Integer, Value, IntWritable, Similari
             try {
                 ArchiveEntry next = iterator.next();
                 if (next != null) {
-                    Document document = new Document(next);
+                    Document document = readDocument(next);
+                    similarityFunction.reweight(document);
                     return document;
                 }
             } catch (IOException ex) {

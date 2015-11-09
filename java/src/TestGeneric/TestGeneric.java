@@ -2,7 +2,7 @@ package TestGeneric;
 
 import SimilarityFile.SimilarityFile;
 import SimilarityFile.SimilarityWritable;
-import io.github.htools.collection.TopKMap;
+import TestGeneric.Candidate;
 import io.github.htools.io.Datafile;
 import io.github.htools.io.HPath;
 import io.github.htools.io.compressed.ArchiveFile;
@@ -10,7 +10,7 @@ import io.github.htools.io.compressed.ArchiveEntry;
 import io.github.htools.lib.Log;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Map;
+import java.util.Comparator;
 
 /**
  * A general purpose test framework that shows how to read the archive files for
@@ -27,8 +27,12 @@ public abstract class TestGeneric {
     protected AnnIndex index;
     private int K = 10;
 
-    public TestGeneric() throws IOException, ClassNotFoundException {
-        index = getIndex();
+    public TestGeneric(Comparator<SimilarityWritable> comparator) throws IOException, ClassNotFoundException {
+        index = getIndex(comparator);
+    }
+
+    public TestGeneric(Datafile vocabulary, Comparator<SimilarityWritable> comparator) throws IOException, ClassNotFoundException {
+        index = getIndex(vocabulary, comparator);
     }
 
     protected void setupOutput(Datafile outputFile) throws IOException {
@@ -49,13 +53,10 @@ public abstract class TestGeneric {
      * @throws IOException
      */
     protected void writeSimilarities(Document suspiciousDocument,
-            TopKMap<Double, Document> topKSourceDocuments) throws IOException {
-        SimilarityWritable record = new SimilarityWritable();
-        record.id = suspiciousDocument.getId();
-        for (Map.Entry<Double, Document> entry : topKSourceDocuments.sorted()) {
-            record.source = entry.getValue().getId();
-            record.score = entry.getKey();
-            record.write(similarityFile);
+            CandidateList topKSourceDocuments) throws IOException {
+        for (Candidate candidate : topKSourceDocuments.sorted()) {
+            candidate.id = suspiciousDocument.docid;
+            candidate.write(similarityFile);
         }
     }
 
@@ -72,7 +73,8 @@ public abstract class TestGeneric {
             Datafile file = files.remove(0);
             ArchiveFile sourceFile = ArchiveFile.getReader(file);
             for (ArchiveEntry entry : (Iterable<ArchiveEntry>) sourceFile) {
-                Document document = new Document(entry);
+                Document document = Document.read(entry);
+                index.getSimilarityFunction().reweight(document);
                 //log.info("%d %s", document.docid, document.getTerms());
                 index.add(document);
             }
@@ -91,9 +93,10 @@ public abstract class TestGeneric {
         for (Datafile file : suspiciousPath.getFiles()) {
             ArchiveFile suspiciousFile = ArchiveFile.getReader(file);
             for (ArchiveEntry entry : (Iterable<ArchiveEntry>) suspiciousFile) {
-                Document susipiciousDocument = new Document(entry);
-                TopKMap<Double, Document> topknn = index.getNNs(susipiciousDocument, K);
-                processTopKNN(susipiciousDocument, topknn);
+                Document suspiciousDocument = Document.read(entry);
+                index.getSimilarityFunction().reweight(suspiciousDocument);
+                CandidateList topknn = index.getNNs(suspiciousDocument, K);
+                processTopKNN(suspiciousDocument, topknn);
             }
         }
     }
@@ -107,11 +110,17 @@ public abstract class TestGeneric {
      * @throws IOException 
      */
     public abstract void processTopKNN(Document suspiciousDocument, 
-            TopKMap<Double, Document> topk) throws IOException;
+            CandidateList topk) throws IOException;
 
     /**
      * @return an instance of the AnnIndex class used.
      * @throws ClassNotFoundException 
      */
-    public abstract AnnIndex getIndex() throws ClassNotFoundException;
+    public abstract AnnIndex getIndex(Comparator<SimilarityWritable> comparator) throws ClassNotFoundException;
+    
+    /**
+     * @return an instance of the AnnIndex class used.
+     * @throws ClassNotFoundException 
+     */
+    public abstract AnnIndex getIndex(Datafile vocabulary, Comparator<SimilarityWritable> comparator) throws ClassNotFoundException;
 }

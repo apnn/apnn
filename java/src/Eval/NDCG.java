@@ -20,13 +20,13 @@ public class NDCG extends Metric {
 
     public static Log log = new Log(NDCG.class);
 
-    public NDCG(Datafile groundtruthFile, int k) {
-        super(groundtruthFile, k);
+    public NDCG(Datafile groundtruthFile) {
+        super(groundtruthFile);
     }
 
     @Override
-    public double score(SuspiciousDocument groundtruth, SuspiciousDocument retrievedDocument) {
-        return dcg(groundtruth, retrievedDocument) / dcg(groundtruth, groundtruth);
+    public double score(SuspiciousDocument groundtruth, SuspiciousDocument retrievedDocument, int k) {
+        return dcg(groundtruth, retrievedDocument, k) / dcg(groundtruth, groundtruth, k);
     }
 
     /**
@@ -35,17 +35,17 @@ public class NDCG extends Metric {
      * @return the Discounted Cumulative Gain for the retrieved NNs vs the
      * optimal NNs (ground truth) for the given suspicious document.
      */
-    private double dcg(SuspiciousDocument optimalResult, SuspiciousDocument retrievedResult) {
+    private double dcg(SuspiciousDocument optimalResult, SuspiciousDocument retrievedResult, int k) {
         double dcg = 0;
         for (SourceDocument document : retrievedResult.relevantDocuments.values()) {
             // positions count from 0
-            if (document.position < getK()) {
+            if (document.position <= k) {
                 SourceDocument gt = optimalResult.relevantDocuments.get(document.docid);
                 if (gt != null) {
-                    if (document.position == 0) {
-                        dcg += gt.relevanceGrade;
+                    if (document.position == 1) {
+                        dcg += relevanceGrade(document.position, k);
                     } else {
-                        dcg += gt.relevanceGrade / MathTools.log2(document.position + 1);
+                        dcg += relevanceGrade(document.position, k) / MathTools.log2(document.position);
                     }
                 }
             }
@@ -53,27 +53,7 @@ public class NDCG extends Metric {
         return dcg;
     }
 
-    @Override
-    protected int getNextRelevanceGrade(SuspiciousDocument suspiciousDoucment,
-            double score) {
-        return getK() - suspiciousDoucment.relevantDocuments.size();
-    }
-
-    public static void main(String[] args) throws IOException {
-        Conf conf = new Conf(args, "groundtruth results -k [k] --hdfs");
-
-        Datafile groundtruth = conf.getBoolean("hdfs", false)
-                ? conf.getHDFSFile("groundtruth")
-                : conf.getFSFile("groundtruth");
-        int k = conf.getInt("k", 10);
-        NDCG metric = new NDCG(groundtruth, k);
-        HPath path = conf.getBoolean("hdfs", false)
-                ? conf.getHDFSPath("results")
-                : conf.getFSPath("results");
-        for (Datafile resultFile : path.getFiles()) {
-            HashMap<Document, Double> score = metric.score(resultFile);
-            double ndcg = metric.mean(score);
-            log.printf("%s n=%d ndcg=%f", resultFile.getName(), score.size(), ndcg);
-        }
+    protected int relevanceGrade(int position, int k) {
+        return 1 + k - position;
     }
 }

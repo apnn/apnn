@@ -1,7 +1,10 @@
 package Shingle;
 
-import TestAnnMR.TestAnnJob;
 import TestGeneric.Tokenizer;
+import TestGenericMR.TestGenericJob;
+import TestGenericMR.TestGenericJobIE;
+import TestGenericMR.TestGenericMapIE;
+import TestGenericMR.TestGenericReduceIE;
 import io.github.htools.lib.Log;
 import io.github.htools.hadoop.Conf;
 import java.io.IOException;
@@ -26,31 +29,22 @@ import org.apache.hadoop.mapreduce.Job;
  *
  * @author Jeroen
  */
-public class ShingleJob extends TestAnnJob {
+public class ShingleJob {
 
     private static final Log log = new Log(ShingleJob.class);
-    public static final String SHINGLESIZE = TestAnnJob.class.getCanonicalName() + ".ShingleSize";
-
-    public ShingleJob(Conf conf, String sources, String suspicious, String outFile) throws IOException, NoSuchMethodException, InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException {
-        super(conf, sources, suspicious, outFile);
-    }
+    public static final String SHINGLESIZE = "shinglesize";
 
     public static void main(String[] args) throws Exception {
 
-        Conf conf = new Conf(args, "sourcepath suspiciouspath output -s [shinglesize]");
+        Conf conf = new Conf(args, "sourcepath suspiciouspath output");
 
-        TestAnnJob job = new TestAnnJob(conf,
+        TestGenericJobIE job = new TestGenericJobIE(conf,
                 conf.get("sourcepath"),
                 conf.get("suspiciouspath"),
                 conf.get("output")
         );
 
         job.setAnnIndex(AnnShingle.class);
-
-        // configuration example (used as default):
-        // job.setTopK(100);
-        // job.setSimilarityFunction(CosineSimilarity.class);
-        setShingleSize(job, conf.getInt("shinglesize", 9));
 
         // don't remove stopwords when creating shingles
         job.setTokenizer(Tokenizer.class);
@@ -59,19 +53,9 @@ public class ShingleJob extends TestAnnJob {
     }
 
     /**
-     * Configure the number of hash functions to use
-     *
-     * @param job
-     * @param bandwidth
-     */
-    public static void setShingleSize(Job job, int bandwidth) {
-        job.getConfiguration().setInt(SHINGLESIZE, bandwidth);
-    }
-
-    /**
      * @param conf
      * @return the consecutive number of characters to use as a shingle
-     * (default=200)
+     * (default=9)
      * @throws ClassNotFoundException
      */
     public static int getShingleSize(Configuration conf) {

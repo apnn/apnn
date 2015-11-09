@@ -1,10 +1,14 @@
 package MinHash;
 
-import TestAnnMR.TestAnnJob;
+import SimilarityFunction.CosineSimilarityTFIDF;
+import TestGenericMR.TestGenericJob;
 import io.github.htools.lib.Log;
 import io.github.htools.hadoop.Conf;
+import io.github.htools.lib.ArrayTools;
+import static io.github.htools.lib.PrintTools.sprintf;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.Job;
 
@@ -21,50 +25,47 @@ import org.apache.hadoop.mapreduce.Job;
  * suspicious documents wrapped in ArchiveFiles (e.g. .tar.lz4)
  * output: the resulting k-most similar source documents per suspicious document
  * are written to a file with this name in SimilarityFile format
- * -h: (optional) number of hash functions to use (default=240)
- * -b: (optional) number of hash functions to be combined in one band (default=5)
+ * hashfunctions=#: (optional) number of hash functions to use (default=240)
+ * bandwidth=#: (optional) number of hash functions to be combined in one band (default=1)
  * @author Jeroen
  */
-public class MinHashJob extends TestAnnJob {
+public class MinHashJob extends TestGenericJob {
 
     private static final Log log = new Log(MinHashJob.class);
-    public static final String MINHASHFUNCTIONS = TestAnnJob.class.getCanonicalName() + ".HashFunctions";
-    public static final String MINHASHBANDWDITH = TestAnnJob.class.getCanonicalName() + ".Bandwidth";
+    public static final String MINHASHFUNCTIONS = "hashfunctions";
+    public static final String MINHASHBANDWDITH = "bandwidth";
 
-    public MinHashJob(Conf conf, String sources, String suspicious, String outFile) throws IOException, NoSuchMethodException, InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException {
-        super(conf, sources, suspicious, outFile);
+    public MinHashJob(Conf conf, String sources, String suspicious, String output) throws IOException, NoSuchMethodException, InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException {
+        super(conf, sources, suspicious, output);
+    }
+    
+    @Override
+    protected void addParameters(Configuration conf, ArrayList<String> parameters) {
+        parameters.add(sprintf("hashfunctions=%s", conf.get("hashfunctions")));
+        parameters.add(sprintf("bandwidth=%s", conf.get("bandwidth")));
     }
     
     public static void main(String[] args) throws Exception {
 
-        Conf conf = new Conf(args, "sourcepath suspiciouspath output -h [numhashfunctions] -b [bandwidth]");
+        Conf conf = new Conf(args, "sourcepath suspiciouspath output");
 
+        log.info("%s", conf.get("vocabulary"));
+        
         MinHashJob job = new MinHashJob(conf,
                 conf.get("sourcepath"),
                 conf.get("suspiciouspath"),
                 conf.get("output")
         );
-        
+                
         job.setAnnIndex(AnnMinHash.class);
         
         // configuration example (used as default):
         // job.setTopK(100);
-        // job.setSimilarityFunction(CosineSimilarity.class);
-        setNumHashFunctions(job, conf.getInt("numhashfunctions", 240));
-        setBandwidth(job, conf.getInt("bandwidth", 1));
+        job.setSimilarityFunction(CosineSimilarityTFIDF.class);
         
         job.waitForCompletion(true);
     }
     
-    /**
-     * Configure the number of hash functions to use
-     * @param job
-     * @param numHashFunctions
-     */
-    public static void setNumHashFunctions(Job job, int numHashFunctions) {
-        job.getConfiguration().setInt(MINHASHFUNCTIONS, numHashFunctions);
-    }
-
     /**
      * @param conf
      * @return the number of hash functions to use (default=200)
@@ -73,15 +74,6 @@ public class MinHashJob extends TestAnnJob {
     public static int getNumHashFunctions(Configuration conf) {
         return conf.getInt(MINHASHFUNCTIONS, 240);
     }    
-    
-    /**
-     * Configure the number of hash functions to use
-     * @param job
-     * @param bandwidth
-     */
-    public static void setBandwidth(Job job, int bandwidth) {
-        job.getConfiguration().setInt(MINHASHBANDWDITH, bandwidth);
-    }
 
     /**
      * @param conf

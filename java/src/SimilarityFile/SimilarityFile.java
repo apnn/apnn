@@ -15,6 +15,7 @@ public class SimilarityFile extends File<SimilarityWritable> {
     public IntField source = this.addInt("source");
     // similarity between the suspicious and the source document
     public DoubleField similarity = this.addDouble("similarity");
+    public DoubleField indexsimilarity = this.addDouble("indexsimilarity");
 
     public SimilarityFile(Datafile df) {
         super(df);

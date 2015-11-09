@@ -1,12 +1,14 @@
 package ShingleWordStart;
 
 import Shingle.*;
+import SimilarityFile.SimilarityWritable;
 import SimilarityFunction.SimilarityFunction;
 import TestGeneric.Document;
 import io.github.htools.fcollection.FHashSetInt;
 import io.github.htools.lib.ByteTools;
 import io.github.htools.lib.Log;
 import io.github.htools.lib.MathTools;
+import java.util.Comparator;
 import org.apache.hadoop.conf.Configuration;
 
 /**
@@ -16,13 +18,14 @@ public class AnnShingleWordStart extends AnnShingle {
 
     public static Log log = new Log(AnnShingleWordStart.class);
     
-    public AnnShingleWordStart(SimilarityFunction similarityFunction, 
+    public AnnShingleWordStart(SimilarityFunction similarityFunction,
+                      Comparator<SimilarityWritable> comparator,
                       int shingleSize) throws ClassNotFoundException {
-        super(similarityFunction, shingleSize);
+        super(similarityFunction, comparator, shingleSize);
     }
 
-    public AnnShingleWordStart(SimilarityFunction function, Configuration conf) throws ClassNotFoundException {
-        super(function, conf);
+    public AnnShingleWordStart(SimilarityFunction function, Comparator<SimilarityWritable> comparator,Configuration conf) throws ClassNotFoundException {
+        super(function, comparator, conf);
     }
     
     @Override
@@ -36,7 +39,7 @@ public class AnnShingleWordStart extends AnnShingle {
             if (content[0] > 32) {
                 int hashcode = MathTools.hashCode(content, 0, shingleSize);
                 result.add(hashcode);
-                log.info("%d %d %s", document.docid, hashcode, ByteTools.toString(content, 0, shingleSize));
+//                log.info("%d %d %s", document.docid, hashcode, ByteTools.toString(content, 0, shingleSize));
             }
             for (int position = shingleSize + 1; position < content.length; position++) {
                 // if the current position is no space
@@ -44,7 +47,7 @@ public class AnnShingleWordStart extends AnnShingle {
                 if (content[position - shingleSize - 1] == 32 && content[position - shingleSize] > 32) {
                     int hashcode = MathTools.hashCode(content, position - shingleSize, position);
                     result.add(hashcode);
-                    log.info("%d %d %s", document.docid, hashcode, ByteTools.toString(content, position - shingleSize, position));
+//                    log.info("%d %d %s", document.docid, hashcode, ByteTools.toString(content, position - shingleSize, position));
                 }
             }
         }

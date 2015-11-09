@@ -7,11 +7,9 @@ import io.github.htools.collection.HashMapMap;
 import io.github.htools.fcollection.FHashSet;
 import io.github.htools.io.Datafile;
 import io.github.htools.hadoop.Conf;
-import io.github.htools.lib.ClassTools;
 import io.github.htools.lib.DoubleTools;
 import io.github.htools.lib.Log;
 import java.io.IOException;
-import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -25,10 +23,12 @@ import java.util.Map;
 public class CrossValidate {
     public static Log log = new Log(CrossValidate.class);
     Metric metric;
+    int k;
     HashMap<String, HashMap<Document, Double>> parameterResults = new HashMap();
     
-    public CrossValidate(Metric metric) {
+    public CrossValidate(Metric metric, int k) {
         this.metric = metric;
+        this.k = k;
     }
     
     /**
@@ -38,7 +38,8 @@ public class CrossValidate {
      * given parameterSetting
      */
     public void addParameterResults(String parameterSetting, Datafile resultsFile) {
-        HashMap<Document, Double> scores = metric.score(resultsFile);
+        Metric.ResultSet retrievedDocuments = Metric.loadFile(resultsFile);
+        HashMap<Document, Double> scores = metric.score(retrievedDocuments, k);
         parameterResults.put(parameterSetting, scores);
     }
     
@@ -137,8 +138,8 @@ public class CrossValidate {
         Datafile gtFile = conf.getHDFSFile("groundtruth");
         int rank = conf.getInt("rank", 100);
         int folds = conf.getInt("folds", 10);
-        NDCG ndcg = new NDCG(gtFile, rank);
-        CrossValidate crossValidate = new CrossValidate(ndcg);
+        NDCG ndcg = new NDCG(gtFile);
+        CrossValidate crossValidate = new CrossValidate(ndcg, rank);
         for (String resultFilename : conf.getStrings("results")) {
             Datafile resultFile = new Datafile(conf, resultFilename);
             crossValidate.addParameterResults(resultFile.getName(), resultFile);

@@ -1,5 +1,6 @@
-package ShingleT3;
+package ShingleT2;
 
+import ShingleT3.*;
 import Shingle.ShingleJob;
 import TestGeneric.Tokenizer;
 import TestGenericMR.TestGenericJobIE;
@@ -26,9 +27,9 @@ import org.apache.hadoop.conf.Configuration;
  * -s: shingleSize in words (default=3)
  * @author Jeroen
  */
-public class ShingleT3Job {
+public class ShingleT2Job {
 
-    private static final Log log = new Log(ShingleT3Job.class);
+    private static final Log log = new Log(ShingleT2Job.class);
     
     public static void main(String[] args) throws Exception {
 
@@ -40,7 +41,7 @@ public class ShingleT3Job {
                 conf.get("output")
         );
         
-        job.setAnnIndex(ShingleT3.class);
+        job.setAnnIndex(ShingleT2.class);
         
         // use a tokenizer that does not remove stopwords
         job.setTokenizer(Tokenizer.class);

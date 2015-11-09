@@ -1,22 +1,27 @@
 package SimilarityFile;
 
+import TestGeneric.Candidate;
 import io.github.htools.io.buffer.BufferDelayedWriter;
 import io.github.htools.io.buffer.BufferReaderWriter;
 import io.github.htools.lib.MathTools;
 import io.github.htools.hadoop.tsv.Writable;
 import java.io.IOException;
+import java.util.Comparator;
 
 /**
  * A sentence from the (KBA) collection.
+ *
  * @author jeroen
  */
 public class SimilarityWritable extends Writable<SimilarityFile> {
+
     // id of a suspicious document
     public int id;
     // the similarity of the source document to the suspicious document
-    public double score;
+    public double measureSimilarity;
     // id of the source document
     public int source;
+    public double indexSimilarity;
 
     public SimilarityWritable() {
     }
@@ -25,10 +30,11 @@ public class SimilarityWritable extends Writable<SimilarityFile> {
         SimilarityWritable s = new SimilarityWritable();
         s.id = id;
         s.source = source;
-        s.score = score;
+        s.measureSimilarity = measureSimilarity;
+        s.indexSimilarity = indexSimilarity;
         return s;
     }
-    
+
     @Override
     public int hashCode() {
         return MathTools.hashCode(id, source);
@@ -37,8 +43,8 @@ public class SimilarityWritable extends Writable<SimilarityFile> {
     @Override
     public boolean equals(Object o) {
         if (o instanceof SimilarityWritable) {
-           SimilarityWritable oo = (SimilarityWritable) o;
-           return oo.id == id && oo.source == source;
+            SimilarityWritable oo = (SimilarityWritable) o;
+            return oo.id == id && oo.source == source;
         }
         return false;
     }
@@ -47,28 +53,34 @@ public class SimilarityWritable extends Writable<SimilarityFile> {
     public void read(SimilarityFile f) {
         this.id = f.id.get();
         this.source = f.source.get();
-        this.score = f.similarity.get();
+        this.measureSimilarity = f.similarity.get();
+        this.indexSimilarity = f.indexsimilarity.get();
     }
 
     @Override
-    public void write(BufferDelayedWriter writer)  {
+    public void write(BufferDelayedWriter writer) {
         writer.write(id);
         writer.write(source);
-        writer.write(score);
+        writer.write(measureSimilarity);
+        writer.write(indexSimilarity);
     }
 
     @Override
     public void readFields(BufferReaderWriter reader) {
         id = reader.readInt();
         source = reader.readInt();
-        score = reader.readDouble();
+        measureSimilarity = reader.readDouble();
+        indexSimilarity = reader.readDouble();
     }
 
     @Override
     public void write(SimilarityFile file) throws IOException {
         file.id.set(id);
         file.source.set(source);
-        file.similarity.set(score);
+        file.similarity.set(measureSimilarity);
+        file.indexsimilarity.set(indexSimilarity);
         file.write();
     }
+
+    
 }

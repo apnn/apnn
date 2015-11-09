@@ -31,13 +31,12 @@ public class BruteForceIGJob {
 
         Conf conf = new Conf(args, "sourcepath suspiciouspath output");
         conf.setTaskTimeout(1800000);
-
+        
         TestGenericJob job = new TestGenericJob(conf,
                 conf.get("sourcepath"),
                 conf.get("suspiciouspath"),
                 conf.get("output"));
 
-        job.setTopK(100);
         job.setSimilarityFunction(NormalizedInformationGain.class);
 
         job.waitForCompletion(true);

@@ -1,14 +1,12 @@
 package ShingleWordStart;
 
 import Shingle.*;
-import TestAnnMR.TestAnnJob;
 import TestGeneric.Tokenizer;
+import TestGenericMR.TestGenericJobIE;
 import io.github.htools.lib.Log;
 import io.github.htools.hadoop.Conf;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.mapreduce.Job;
 
 /**
  * Basis for this method is to create 4-byte hashCodes of all s-character
@@ -27,30 +25,21 @@ import org.apache.hadoop.mapreduce.Job;
  *
  * @author Jeroen
  */
-public class ShingleWordStartJob extends ShingleJob {
+public class ShingleWordStartJob {
 
     private static final Log log = new Log(ShingleWordStartJob.class);
 
-    public ShingleWordStartJob(Conf conf, String sources, String suspicious, String outFile) throws IOException, NoSuchMethodException, InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException {
-        super(conf, sources, suspicious, outFile);
-    }
-
     public static void main(String[] args) throws Exception {
 
-        Conf conf = new Conf(args, "sourcepath suspiciouspath output -s [shinglesize]");
+        Conf conf = new Conf(args, "sourcepath suspiciouspath output");
 
-        TestAnnJob job = new TestAnnJob(conf,
+        TestGenericJobIE job = new TestGenericJobIE(conf,
                 conf.get("sourcepath"),
                 conf.get("suspiciouspath"),
                 conf.get("output")
         );
 
         job.setAnnIndex(AnnShingleWordStart.class);
-
-        // configuration example (used as default):
-        // job.setTopK(100);
-        // job.setSimilarityFunction(CosineSimilarity.class);
-        setShingleSize(job, conf.getInt("shinglesize", 9));
 
         // don't remove stopwords when creating shingles
         job.setTokenizer(Tokenizer.class);

@@ -1,13 +1,16 @@
 package MinHash;
 
+import SimilarityFile.SimilarityWritable;
 import SimilarityFunction.SimilarityFunction;
 import TestGeneric.AnnIndex;
+import TestGeneric.CandidateList;
 import TestGeneric.Document;
+import io.github.htools.collection.HashMapDouble;
 import io.github.htools.fcollection.FHashMapIntList;
-import io.github.htools.lib.ArrayTools;
 import io.github.htools.lib.Log;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import java.util.HashSet;
+import java.util.Comparator;
+import java.util.Map;
 import org.apache.hadoop.conf.Configuration;
 
 /**
@@ -16,17 +19,17 @@ import org.apache.hadoop.conf.Configuration;
 public class AnnMinHash extends AnnIndex<int[]> {
 
     public static Log log = new Log(AnnMinHash.class);
-    MinHash minhash;
-    FHashMapIntList<Document> minHashTables[];
+    protected MinHash minhash;
+    protected FHashMapIntList<Document> minHashTables[];
     
-    public AnnMinHash(SimilarityFunction similarityFunction, int numHashFunctions, int bandwidth) throws ClassNotFoundException {
-        super(similarityFunction);
+    public AnnMinHash(SimilarityFunction similarityFunction, Comparator<SimilarityWritable> comparator, int numHashFunctions, int bandwidth) throws ClassNotFoundException {
+        super(similarityFunction, comparator);
         log.info("AnnMinhash constructor %d %d", numHashFunctions, bandwidth);
         initialize( numHashFunctions, bandwidth );
     }
     
-    public AnnMinHash(SimilarityFunction function, Configuration conf) throws ClassNotFoundException {
-        this(function, MinHashJob.getNumHashFunctions(conf), MinHashJob.getBandwidth(conf));
+    public AnnMinHash(SimilarityFunction function, Comparator<SimilarityWritable> comparator, Configuration conf) throws ClassNotFoundException {
+        this(function, comparator, MinHashJob.getNumHashFunctions(conf), MinHashJob.getBandwidth(conf));
     }
     
     private void initialize(int numHashFunctions, int bandwidth) {
@@ -44,15 +47,17 @@ public class AnnMinHash extends AnnIndex<int[]> {
     }
 
     @Override
-    protected HashSet<Document> getDocuments(int[] minHash, Document document) {
-       HashSet<Document> documents = new HashSet();
-       for (int i = 0; i < minHash.length; i++) {
-           FHashMapIntList<Document> minHashtable = minHashTables[i];
-           ObjectArrayList<Document> list = minHashtable.get(minHash[i]);
-           if (list != null)
-               documents.addAll(list);
+    protected void getDocuments(CandidateList list, int[] minHash, Document document) {
+       HashMapDouble<Document> documentCount = new HashMapDouble();
+       for (int hashFunction = 0; hashFunction < minHash.length; hashFunction++) {
+           FHashMapIntList<Document> minHashtable = minHashTables[hashFunction];
+           ObjectArrayList<Document> bucket = minHashtable.get(minHash[hashFunction]);
+           if (bucket != null)
+               documentCount.addAll(bucket);
        }
-       return documents;
+       for (Map.Entry<Document, Double> entry : documentCount.entrySet()) {
+           list.add(entry.getKey(), entry.getValue());
+       }
     }
 
     @Override

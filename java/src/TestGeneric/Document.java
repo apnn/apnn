@@ -1,15 +1,20 @@
 package TestGeneric;
 
 import TestGenericMR.TestGenericJob;
+import io.github.htools.collection.ArrayMap;
 import io.github.htools.io.compressed.ArchiveEntry;
 import io.github.htools.lib.ByteTools;
 import io.github.htools.lib.Log;
 import io.github.htools.lib.MathTools;
 import io.github.htools.search.ByteSearch;
+import io.github.htools.search.ByteSearchPosition;
+import io.github.htools.search.ByteSearchSection;
+import io.github.htools.type.TermVector;
+import io.github.htools.type.TermVectorDouble;
 import io.github.htools.type.TermVectorEntropy;
-import io.github.htools.type.TermVectorInt;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Map;
 import org.apache.hadoop.conf.Configuration;
 
 /**
@@ -37,22 +42,22 @@ public class Document  {
 
     public int docid;
     private ArrayList<String> terms;
-    private TermVectorInt model;
+    private TermVector model;
     private byte[] content;
-
-    public Document(ArchiveEntry entry) throws IOException {
-        this(entry.getName(), entry.readAll());
-    }
-
-    public Document(String filename, byte[] content) throws IOException {
-        this(getDocNumber(filename), content);
-    }
 
     public Document(int docid, byte[] content) throws IOException {
         // note that tokenizer operates on the content in situ, therefore
         // content will be cleaned of any not text, lowercased, space will be 
         // trimmed an, however it will not be stemmed and stop words will not be removed.
         this(docid, content, tokenizer.tokenize(content));
+    }
+
+    public Document(int docid, Map<String, Double> tfidf) throws IOException {
+        // note that tokenizer operates on the content in situ, therefore
+        // content will be cleaned of any not text, lowercased, space will be 
+        // trimmed an, however it will not be stemmed and stop words will not be removed.
+        this.docid = docid;
+        this.model = new TermVectorDouble(tfidf);
     }
 
     public Document(int docid, byte[] content, ArrayList<String> terms) throws IOException {
@@ -62,6 +67,25 @@ public class Document  {
         this.content = ByteTools.toBytes(content, 0, content.length);
     }
 
+    public static Document read(ArchiveEntry entry) throws IOException {
+        byte[] readAll = entry.readAll();
+        int docid = getDocNumber(entry.getName());
+        return new Document(docid, readAll);
+    }
+    
+    public static Document readTFIDF(ArchiveEntry entry) throws IOException {
+        ByteSearch eol = ByteSearch.create("\\n");
+        ByteSearch space = ByteSearch.WHITESPACE;
+        ArrayMap<String, Double> tfidf = new ArrayMap();
+        ArrayList<ByteSearchSection> split = eol.split(entry.readAll());
+        for (ByteSearchSection section : split) {
+            ArrayList<ByteSearchSection> parts = space.split(section);
+            tfidf.add(parts.get(0).toString(), Double.parseDouble(parts.get(1).toString()));
+        }
+        int docid = getDocNumber(entry.getName());
+        return new Document(docid, tfidf);
+    }
+    
     /**
      * If a tokenizer was configured, Document will use this tokenizer.
      *
@@ -75,6 +99,10 @@ public class Document  {
         }
     }
 
+    public void setModel(TermVector v) {
+        this.model = v;
+    }
+    
     /**
      *
      * @return The collection ID for the document, which is extracted as the
@@ -94,7 +122,7 @@ public class Document  {
      * tokenized terms and the raw content from memory, so after calling this
      * getModel() and getTerms() can no longer be used.
      */
-    public TermVectorInt getModel() {
+    public TermVector getModel() {
         if (model == null) {
             //log.info("getModel %s", terms);
             if (!stopwordsRemoved) {
@@ -102,8 +130,6 @@ public class Document  {
             } else {
                 model = new TermVectorEntropy(terms);
             }
-            terms = null;
-            content = null;
         }
         return model;
     }
@@ -125,7 +151,6 @@ public class Document  {
      * Warning, using this will clear the getContent() representation.
      */
     public ArrayList<String> getTerms() {
-        content = null;
         return terms;
     }
 

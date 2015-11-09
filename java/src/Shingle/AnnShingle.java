@@ -1,15 +1,19 @@
 package Shingle;
 
+import SimilarityFile.SimilarityWritable;
 import SimilarityFunction.SimilarityFunction;
 import TestGeneric.AnnIndex;
+import TestGeneric.CandidateList;
 import TestGeneric.Document;
+import io.github.htools.collection.HashMapInt;
 import io.github.htools.fcollection.FHashMapIntList;
 import io.github.htools.fcollection.FHashSetInt;
 import io.github.htools.lib.ByteTools;
 import io.github.htools.lib.Log;
 import io.github.htools.lib.MathTools;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import java.util.HashSet;
+import java.util.Comparator;
+import java.util.Map;
 import org.apache.hadoop.conf.Configuration;
 
 /**
@@ -20,38 +24,47 @@ public class AnnShingle extends AnnIndex<FHashSetInt> {
     public static Log log = new Log(AnnShingle.class);
     protected int shingleSize;
     protected FHashMapIntList<Document> mapShingles;
-    
-    public AnnShingle(SimilarityFunction similarityFunction, 
-                      int shingleSize) throws ClassNotFoundException {
-        super(similarityFunction);
-        initialize(shingleSize );
+
+    public AnnShingle(SimilarityFunction similarityFunction,
+            Comparator<SimilarityWritable> comparator,
+            int shingleSize) throws ClassNotFoundException {
+        super(similarityFunction, comparator);
+        initialize(shingleSize);
     }
-    
-    public AnnShingle(SimilarityFunction function, Configuration conf) throws ClassNotFoundException {
-        this(function, ShingleJob.getShingleSize(conf));
+
+    public AnnShingle(SimilarityFunction function, Comparator<SimilarityWritable> comparator, Configuration conf) throws ClassNotFoundException {
+        this(function, comparator, ShingleJob.getShingleSize(conf));
     }
-    
+
     private void initialize(int shingleSize) {
         this.shingleSize = shingleSize;
         mapShingles = new FHashMapIntList(1000000);
         // set initial size to prevent rehashing too often
     }
-    
+
     @Override
     protected void addDocument(Document document, FHashSetInt shingleHashCodes) {
-        for (int hashCode : shingleHashCodes)
+        for (int hashCode : shingleHashCodes) {
             mapShingles.add(hashCode, document);
+        }
     }
     
     @Override
-    protected HashSet<Document> getDocuments(FHashSetInt shingleHashCodes, Document document) {
-       HashSet<Document> documents = new HashSet();
-       for (int shingle : shingleHashCodes) {
-           ObjectArrayList<Document> list = mapShingles.get(shingle);
-           if (list != null)
-               documents.addAll(list);
-       }
-       return documents;
+    protected void getDocuments(CandidateList candidates, FHashSetInt shingleHashCodes, Document document) {
+        HashMapInt<Document> docCount = new HashMapInt();
+        log.info("fp size %d %d", document.docid, shingleHashCodes.size());
+        this.countDocCodepoints += shingleHashCodes.size();
+        for (int shingle : shingleHashCodes) {
+            ObjectArrayList<Document> list = mapShingles.get(shingle);
+            if (list != null) {
+                docCount.addAll(list);
+                this.countComparedDocCodepoints += list.size();
+            }
+        }
+        for (Map.Entry<Document, Integer> entry : docCount.entrySet()) {
+            double estimatedSimilarity = entry.getValue() / (double) shingleHashCodes.size();
+            candidates.add(entry.getKey(), estimatedSimilarity); // todo add estimation similarity
+        }
     }
 
     @Override

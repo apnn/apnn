@@ -60,14 +60,12 @@ public class Tokenizer extends AbstractTokenizer {
                 }
             }
         }
-        log.info("stopwords %d %s", stopwords.size(), stopwords);
-            for (ExtractorProcessor p : this.preprocess) {
-                log.info("%s", p.getClass().getCanonicalName());
-            }
+//        log.info("stopwords %d %s", stopwords.size(), stopwords);
+//            for (ExtractorProcessor p : this.preprocess) {
+//                log.info("%s", p.getClass().getCanonicalName());
+//            }
         if (stopwords.size() != 1745) {
-            
             log.crash();
-            
         }
         stopwordRemover = new RemoveFilteredWords(null, stopwords);
     }

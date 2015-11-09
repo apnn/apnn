@@ -2,16 +2,19 @@ package Eval;
 
 import SimilarityFile.SimilarityFile;
 import SimilarityFile.SimilarityWritable;
+import io.github.htools.collection.HashMapList;
 import io.github.htools.fcollection.FHashMapIntObject;
-import io.github.htools.fcollection.FHashSet;
+import io.github.htools.hadoop.Conf;
 import io.github.htools.io.Datafile;
+import io.github.htools.io.HPath;
+import io.github.htools.lib.ArrayTools;
 import io.github.htools.lib.DoubleTools;
 import io.github.htools.lib.Log;
-import io.github.htools.lib.MathTools;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * A generic class to compute an evaluation metric over a set of retrieved
@@ -30,12 +33,54 @@ import java.util.Set;
 public abstract class Metric {
 
     public static Log log = new Log(Metric.class);
-    private int k;
-    private FHashMapIntObject<SuspiciousDocument> groundTruth;
+    public static boolean useIndexSimilarity = false;
+    private ResultSet groundTruth;
 
-    public Metric(Datafile groundtruthFile, int k) {
-        this.k = k;
+    public Metric(Datafile groundtruthFile) {
         groundTruth = loadFile(groundtruthFile);
+    }
+
+    public static void main(String[] args) throws IOException, Exception {
+        Conf conf = new Conf(args, "metric groundtruth results  --hdfs --ie -r {rank}");
+
+        Datafile groundtruth = conf.getBoolean("hdfs", false)
+                ? conf.getHDFSFile("groundtruth")
+                : conf.getFSFile("groundtruth");
+        int ranks[] = conf.getInts("rank");
+        if (ranks.length == 0) {
+            ranks = new int[]{10};
+        }
+        log.info("ranks %s", ArrayTools.toString(ranks));
+        Metric metric = get(conf.get("metric"), groundtruth);
+        if (conf.containsKey("ie")) {
+            useIndexSimilarity = true;
+        }
+        HPath path = conf.getBoolean("hdfs", false)
+                ? conf.getHDFSPath("results")
+                : conf.getFSPath("results");
+        for (Datafile resultFile : path.getFiles()) {
+            ResultSet retrievedDocuments = loadFile(resultFile);
+            for (int rank : ranks) {
+                HashMap<Document, Double> score = metric.score(retrievedDocuments, rank);
+                double recall = metric.mean(score);
+                log.printf("%s n=%d %s@%3d=%f", resultFile.getName(), score.size(), conf.get("metric"), rank, recall);
+            }
+        }
+    }
+
+    public static Metric get(String metric, Datafile groundtruth) throws Exception {
+        switch (metric) {
+            case "NDCG":
+                return new NDCG(groundtruth);
+            case "Recall":
+                return new Recall(groundtruth);
+            default:
+                throw new Exception("unknown metric " + metric);
+        }
+    }
+
+    public static double getSimilarity(SourceDocument d) {
+        return (useIndexSimilarity) ? d.indexSimilarity : d.measureSimilarity;
     }
 
     /**
@@ -47,17 +92,17 @@ public abstract class Metric {
      * document vs the ground truth
      */
     public abstract double score(SuspiciousDocument groundtruth,
-            SuspiciousDocument retrievedDocument);
+            SuspiciousDocument retrievedDocument, int k);
 
     /**
      * @param retrievedDocument
      * @return the score for a single document with its retrieved nearest
      * neighbors
      */
-    public double score(SuspiciousDocument retrievedDocument) {
+    public double score(SuspiciousDocument retrievedDocument, int k) {
         SuspiciousDocument gt = groundTruth.get(retrievedDocument.docid);
         if (gt != null) {
-            return score(gt, retrievedDocument);
+            return score(gt, retrievedDocument, k);
         } else {
             return 0;
         }
@@ -68,23 +113,18 @@ public abstract class Metric {
     }
 
     /**
-     * @return k as in metric@k to restrict the top-k ranks considered.
-     */
-    public int getK() {
-        return k;
-    }
-
-    /**
      * @param resultFile
      * @return a map of scored documents (id, score) for the retrieved nearest
      * neighbors in the given file.
      */
-    public HashMap<Document, Double> score(Datafile resultFile) {
+    public HashMap<Document, Double> score(ResultSet retrievedDocuments, int k) {
         HashMap<Document, Double> results = new HashMap();
-        FHashMapIntObject<SuspiciousDocument> retrievedDocuments = loadFile(resultFile);
-        for (SuspiciousDocument scored : retrievedDocuments.values()) {
-            double score = score(scored);
-            results.put(scored, score);
+        for (SuspiciousDocument suspiciousDoc : this.groundTruth.values()) {
+            SuspiciousDocument scored = retrievedDocuments.get(suspiciousDoc.docid);
+            if (scored != null) {
+                double score = Metric.this.score(scored, k);
+                results.put(scored, score);
+            }
         }
         return results;
     }
@@ -102,34 +142,47 @@ public abstract class Metric {
      * @return a Set of the SuspiciousDocuments in the SimilarityFile with the
      * list of nearest neighbor SourceDocuments.
      */
-    public FHashMapIntObject<SuspiciousDocument> loadFile(Datafile file) {
+    public static ResultSet loadFile(Datafile file) {
         file.setBufferSize(1000000);
-        FHashMapIntObject<SuspiciousDocument> map = new FHashMapIntObject(11100); // prevent rehashing
+        HashMapList<Integer, SourceDocument> sourceMap = new HashMapList(11100);
         SimilarityFile similarityFile = new SimilarityFile(file);
         for (SimilarityWritable similarity : similarityFile) {
-            SuspiciousDocument gt = map.get(similarity.id);
-            if (gt == null) {
-                gt = new SuspiciousDocument(similarity);
-                map.put(gt.docid, gt);
-            }
-            gt.add(similarity);
+            SourceDocument sd = new SourceDocument(similarity);
+            sourceMap.add(similarity.id, sd);
         }
+
+        ResultSet map = new ResultSet(11100); // prevent rehashing
+        for (Map.Entry<Integer, ArrayList<SourceDocument>> entry : sourceMap.entrySet()) {
+            ArrayList<SourceDocument> list = entry.getValue();
+            Collections.sort(list, Collections.reverseOrder());
+            SuspiciousDocument gt = new SuspiciousDocument(entry.getKey());
+            for (int i = 0; i < list.size(); i++) {
+                SourceDocument sd = list.get(i);
+                sd.position = i + 1;
+                gt.add(sd);
+            }
+            map.put(gt.docid, gt);
+        }
+
         return map;
     }
 
-    /**
-     *
-     * @param suspiciousDoucment
-     * @param score
-     * @return a relevance grade for the document in the ground truth set, which
-     * for some metrics may be always 1 to avoid using relevance grades, or for
-     * other metrics a descending grade over the rank to award the retrieval of
-     * the most nearest neighbors.
-     */
-    protected abstract int getNextRelevanceGrade(SuspiciousDocument suspiciousDoucment,
-            double score);
+    public static class ResultSet extends FHashMapIntObject<SuspiciousDocument> {
 
-    public class Document {
+        public ResultSet() {
+            super();
+        }
+
+        public ResultSet(int size) {
+            super(size);
+        }
+
+        public ResultSet(Map<Integer, SuspiciousDocument> map) {
+            super(map);
+        }
+    }
+
+    public static class Document {
 
         public int docid;
 
@@ -138,12 +191,12 @@ public abstract class Metric {
         }
     }
 
-    public class SuspiciousDocument extends Document {
+    public static class SuspiciousDocument extends Document {
 
         public FHashMapIntObject<SourceDocument> relevantDocuments = new FHashMapIntObject();
 
-        public SuspiciousDocument(SimilarityWritable similarity) {
-            this.docid = similarity.id;
+        public SuspiciousDocument(int docid) {
+            this.docid = docid;
         }
 
         public SourceDocument getSourceDocument(int sourceDocumentId) {
@@ -160,32 +213,31 @@ public abstract class Metric {
          *
          * @param similarity
          */
-        public void add(SimilarityWritable similarity) {
-            int relevanceGrade = getNextRelevanceGrade(this, similarity.score);
-            if (relevanceGrade > 0) {
-                SourceDocument source
-                        = new SourceDocument(similarity,
-                                relevanceGrade,
-                                relevantDocuments.size());
-                relevantDocuments.put(source.docid, source);
-            }
+        public void add(SourceDocument source) {
+            relevantDocuments.put(source.docid, source);
         }
     }
 
-    public class SourceDocument extends Document {
+    public static class SourceDocument extends Document implements Comparable<SourceDocument> {
 
-        public int relevanceGrade;
         public int position;
-        public double score;
+        public double measureSimilarity;
+        public double indexSimilarity;
 
         public SourceDocument(
-                SimilarityWritable similarity,
-                int relevanceGrade,
-                int position) {
+                SimilarityWritable similarity) {
             this.docid = similarity.source;
-            this.relevanceGrade = relevanceGrade;
-            this.position = position;
-            this.score = similarity.score;
+            this.measureSimilarity = similarity.measureSimilarity;
+            this.indexSimilarity = similarity.indexSimilarity;
+        }
+
+        public double getScore() {
+            return getSimilarity(this);
+        }
+
+        @Override
+        public int compareTo(SourceDocument o) {
+            return Double.compare(getScore(), o.getScore());
         }
     }
 }

@@ -11,7 +11,6 @@ import io.github.htools.collection.HashMapDouble;
 import io.github.htools.collection.TopKMap;
 import io.github.htools.fcollection.FHashMapList;
 import io.github.htools.fcollection.FHashMapObjectDouble;
-import io.github.htools.lib.CollectionTools;
 import io.github.htools.lib.Log;
 import io.github.htools.type.KV;
 import io.github.htools.type.TermVectorDouble;
@@ -22,20 +21,24 @@ import java.util.Map;
 import org.apache.hadoop.conf.Configuration;
 
 /**
+ * An ANN that uses the top-k n-tfidf terms per document for indexing and estimating 
+ * the cosine similarity between a query document and the documents in the index.
+ * n-tfidf = tf * idf / ||D|| (normalized by the length of the original document vector) 
  * @author Jeroen
  */
 public class AnnCosEst extends AnnIndex<FHashMapObjectDouble<String>> {
 
     public static Log log = new Log(AnnCosEst.class);
-    protected int termssize;
+    // number of terms to use to represent a document (top-k)
+    protected int k;
+    // inverted list per term, each entry being a Document and the n-tfidf
     protected FHashMapList<String, KV<Document, Double>> mapTerms;
-    protected Idf idf;
-
+    
     public AnnCosEst(SimilarityFunction similarityFunction,
             Comparator<SimilarityWritable> comparator,
-            int shingleSize) throws ClassNotFoundException {
+            int termssize) throws ClassNotFoundException {
         super(similarityFunction, comparator);
-        initialize(shingleSize);
+        initialize(termssize);
     }
 
     public AnnCosEst(SimilarityFunction function, Comparator<SimilarityWritable> comparator, Configuration conf) throws ClassNotFoundException {
@@ -43,26 +46,24 @@ public class AnnCosEst extends AnnIndex<FHashMapObjectDouble<String>> {
     }
 
     private void initialize(int shingleSize) {
-        this.termssize = shingleSize;
+        this.k = shingleSize;
         mapTerms = new FHashMapList(1000000);
-        idf = ((CosineSimilarityTFIDF) this.similarityFunction).idf;
         // set initial size to prevent rehashing too often
     }
 
     @Override
-    protected void addDocument(Document document, FHashMapObjectDouble<String> fp) {
-        for (Object2DoubleMap.Entry<String> entry : fp.object2DoubleEntrySet()) {
+    protected void addDocument(Document document, FHashMapObjectDouble<String> shortVector) {
+        for (Object2DoubleMap.Entry<String> entry : shortVector.object2DoubleEntrySet()) {
             mapTerms.add(entry.getKey(), new KV<Document, Double>(document, entry.getDoubleValue()));
         }
     }
 
     @Override
-    protected void getDocuments(CandidateList candidates, FHashMapObjectDouble<String> fp, Document document) {
+    protected void getDocuments(CandidateList candidates, 
+            FHashMapObjectDouble<String> shortVector, Document document) {
         HashMapDouble<Document> docCount = new HashMapDouble();
-        //log.info("fp size %d %d", document.docid, fp.size());
-        this.countDocCodepoints += fp.size();
-        log.info("%d %s", document.docid, fp);
-        for (Object2DoubleMap.Entry<String> fpentry : fp.object2DoubleEntrySet()) {
+        this.countDocCodepoints += shortVector.size(); //
+        for (Object2DoubleMap.Entry<String> fpentry : shortVector.object2DoubleEntrySet()) {
             double tfidf = fpentry.getDoubleValue();
             ObjectArrayList<KV<Document, Double>> list = mapTerms.get(fpentry.getKey());
             if (list != null) {
@@ -80,11 +81,16 @@ public class AnnCosEst extends AnnIndex<FHashMapObjectDouble<String>> {
 
     @Override
     protected FHashMapObjectDouble<String> getFingerprint(Document document) {
-        FHashMapObjectDouble<String> result = new FHashMapObjectDouble();
-        TopKMap<Double, String> topk = new TopKMap(this.termssize);
+        // returns a 'shortVector' of the top-k n-tfidf terms
+        // take top-k tfidf terms
+        TopKMap<Double, String> topk = new TopKMap(this.k);
         topk.addInvert((TermVectorDouble)document.getModel());
+        
+        // convert these into a <String, Double> map.
+        FHashMapObjectDouble<String> result = new FHashMapObjectDouble();
         for (Map.Entry<Double, String> entry : topk) {
-            result.add(entry.getValue(), entry.getKey() / document.getModel().magnitude());
+            double ntfidf = entry.getKey() / document.getModel().magnitude();
+            result.add(entry.getValue(), ntfidf);
         }
         return result;
     }

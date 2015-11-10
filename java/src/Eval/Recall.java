@@ -29,6 +29,6 @@ public class Recall extends Metric {
                 }
             }
         }
-        return countRetrievedTopK / (double) Math.min(groundtruth.relevantDocuments.size(), k);
+        return countRetrievedTopK / (double) groundtruth.relevantDocuments.size();
     }
 }

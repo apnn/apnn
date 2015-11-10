@@ -41,7 +41,7 @@ public abstract class Metric {
     }
 
     public static void main(String[] args) throws IOException, Exception {
-        Conf conf = new Conf(args, "metric groundtruth results  --hdfs --ie -r {rank}");
+        Conf conf = new Conf(args, "metric groundtruth results  --hdfs --ie -r [rank]");
 
         Datafile groundtruth = conf.getBoolean("hdfs", false)
                 ? conf.getHDFSFile("groundtruth")
@@ -60,10 +60,16 @@ public abstract class Metric {
                 : conf.getFSPath("results");
         for (Datafile resultFile : path.getFiles()) {
             ResultSet retrievedDocuments = loadFile(resultFile);
-            for (int rank : ranks) {
-                HashMap<Document, Double> score = metric.score(retrievedDocuments, rank);
-                double recall = metric.mean(score);
-                log.printf("%s n=%d %s@%3d=%f", resultFile.getName(), score.size(), conf.get("metric"), rank, recall);
+            double scores[] = new double[ranks.length];
+            for (int i = 0; i < ranks.length; i++) {
+                int rank = ranks[i];
+                HashMap<Document, Double> scorePerDocument = metric.score(retrievedDocuments, rank);
+                double avgScore = metric.mean(scorePerDocument);
+                scores[i] = avgScore;
+                log.printf("%s n=%d %s@%3d=%f", resultFile.getName(), scorePerDocument.size(), conf.get("metric"), rank, avgScore);
+            }
+            if (ranks.length > 1) {
+                log.printf("%s", ArrayTools.toString(scores, "\t"));
             }
         }
     }

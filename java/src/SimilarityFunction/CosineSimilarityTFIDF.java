@@ -26,9 +26,9 @@ public class CosineSimilarityTFIDF implements SimilarityFunction {
         profiler.startTime();
         double cossim = a.getModel().cossim(b.getModel());
         profiler.addAvgTime();
-        if (Double.isNaN(cossim) || cossim > 1) {
-            if (a.getModel() instanceof TermVectorInt)
-                ((TermVectorInt)a.getModel()).cossimDebug((TermVectorInt)b.getModel());
+        if (Double.isNaN(cossim) || cossim > 1.000001) {
+            if (a.getModel() instanceof TermVectorDouble)
+                ((TermVectorDouble)a.getModel()).cossimDebug((TermVectorDouble)b.getModel());
             log.fatal("cossim %s", cossim);
         }
        return cossim;

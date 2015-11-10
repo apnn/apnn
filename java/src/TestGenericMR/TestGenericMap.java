@@ -100,7 +100,7 @@ public class TestGenericMap extends Mapper<Integer, Value, IntWritable, Candidat
         TestGenericJob.addGetDocComparedCodepoints(context, index.countComparedDocCodepoints);
         TestGenericJob.addFingerprintTime(context, AnnIndex.getGetFingerprintTime(), AnnIndex.getGetFingerprintCount());
         TestGenericJob.addSimilarityFunction(context, similarityFunction.getComparisonsTime(), similarityFunction.getComparisons());
-        
+        index.cleanup(context);
     }
 
     /**

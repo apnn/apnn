@@ -6,6 +6,7 @@ import io.github.htools.lib.Log;
 import io.github.htools.lib.Profiler;
 import java.io.IOException;
 import java.util.Comparator;
+import org.apache.hadoop.mapreduce.Mapper.Context;
 
 /**
  * An index that can store documents in such a form that for a given query
@@ -143,8 +144,11 @@ public abstract class AnnIndex<T> {
     
     protected void assignMeasureSimilarity(CandidateList candidates, Document document) {
         for (Candidate candidate : candidates) {
+            //log.info("%d %d", document.docid, candidate.document.docid);
             candidate.measureSimilarity = similarityFunction.similarity(document, candidate.document);
             candidate.id = document.docid;
         }
     }
+    
+    public void cleanup(Context context) {  }
 }

@@ -7,7 +7,6 @@ import io.github.htools.lib.ByteTools;
 import io.github.htools.lib.Log;
 import io.github.htools.lib.MathTools;
 import io.github.htools.search.ByteSearch;
-import io.github.htools.search.ByteSearchPosition;
 import io.github.htools.search.ByteSearchSection;
 import io.github.htools.type.TermVector;
 import io.github.htools.type.TermVectorDouble;

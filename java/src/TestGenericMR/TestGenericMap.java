@@ -36,10 +36,10 @@ import org.apache.hadoop.mapreduce.Mapper;
 public class TestGenericMap extends Mapper<Integer, Value, IntWritable, Candidate> {
 
     public static final Log log = new Log(TestGenericMap.class);
-    Conf conf;
-    AnnIndex index;
-    SimilarityFunction similarityFunction;
-    int topk;
+    protected Conf conf;
+    protected AnnIndex index;
+    protected SimilarityFunction similarityFunction;
+    protected int topk;
 
     protected IntWritable outKey = new IntWritable();
 

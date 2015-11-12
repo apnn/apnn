@@ -1,82 +1,104 @@
-package LSHCos;
+package LSHCos.Partial;
 
-import static LSHCos.AnnLSHCos.COUNTERS.LSHABSERROR;
-import static LSHCos.AnnLSHCos.COUNTERS.LSHERRORCOUNT;
 import SimilarityFile.SimilarityWritable;
-import SimilarityFunction.CosineSimilarityTFIDF;
 import SimilarityFunction.SimilarityFunction;
-import TestGeneric.AnnIndex;
 import TestGeneric.Candidate;
 import TestGeneric.CandidateList;
 import TestGeneric.Document;
-import Vocabulary.Idf;
 import io.github.htools.collection.ArrayMap;
 import io.github.htools.fcollection.FHashMap;
 import io.github.htools.lib.Log;
 import io.github.htools.lib.RandomTools;
 import io.github.htools.type.TermVectorDouble;
 import it.unimi.dsi.fastutil.objects.Object2DoubleMap;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.Map;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.mapreduce.Mapper.Context;
 
 /**
  * @author Jeroen
  */
-public class AnnLSHCos extends AnnIndex<long[]> {
+public class AnnLSHCos {
 
     public static Log log = new Log(AnnLSHCos.class);
-    enum COUNTERS {
-        LSHABSERROR,
-        LSHERRORCOUNT
-    }
+    RandomTools.RandomGenerator random = RandomTools.createGenerator(0);
+    SimilarityFunction similarityFunction;
+    protected Comparator<SimilarityWritable> comparator;
     protected int numHyperplanes = 100;
     protected int fingerprintSize = numHyperplanes / 64;
-    protected Idf idf;
+    HashSet<String> vocabulary;
     FHashMap<String, float[]> randomPlane;
     ArrayMap<Document, long[]> index = new ArrayMap();
-    double abserror;
-    int errorcount;
-
-    public AnnLSHCos(SimilarityFunction similarityFunction,
-            Comparator<SimilarityWritable> comparator,
-            int numHyperplanes) throws ClassNotFoundException {
-        super(similarityFunction, comparator);
-        initialize(numHyperplanes);
-    }
+    ArrayMap<Document, long[]> queries = new ArrayMap();
 
     public AnnLSHCos(SimilarityFunction function, Comparator<SimilarityWritable> comparator, Configuration conf) throws ClassNotFoundException {
-        this(function, comparator, LSHCosJob.getNumHyperplanes(conf));
+        similarityFunction = function;
+        this.comparator = comparator;
+        this.numHyperplanes = LSHCosJob.getNumHyperplanes(conf);
+        fingerprintSize = 1 + (numHyperplanes - 1) / 64;
     }
 
-    private void initialize(int numVectors) {
-        idf = ((CosineSimilarityTFIDF) this.similarityFunction).idf;
-        RandomTools.RandomGenerator random = RandomTools.createGenerator(0);
-        this.numHyperplanes = numVectors;
-        fingerprintSize = 1 + (numVectors - 1) / 64;
-        randomPlane = new FHashMap(idf.size());
-        for (String term : idf.keySet()) {
-            float[] weights = new float[numVectors];
-            for (int i = 0; i < numVectors; i++) {
+    public void createRandomPlanes64() {
+        randomPlane = new FHashMap(vocabulary.size());
+        for (String term : vocabulary) {
+            float[] weights = new float[64];
+            for (int i = 0; i < 64; i++) {
                 weights[i] = (float)random.getStdNormal();
             }
             randomPlane.put(term, weights);
         }
     }
-
-    @Override
+    
+    public Iterable<Map.Entry<Document, long[]>> queryIterator() {
+        return queries;
+    }
+    
+    private void setVocabulary() {
+        vocabulary = new HashSet(10000);
+        for (Document d : index.keySet()) {
+            vocabulary.addAll(d.getTerms());
+        }
+        for (Document d : queries.keySet())
+            vocabulary.addAll(d.getTerms());
+    }
+    
+    public void set(ArrayList<Document> source, ArrayList<Document> queries) {
+        random = RandomTools.createGenerator(0);
+        index = createEmptyFingerPrints(source);
+        this.queries = createEmptyFingerPrints(queries);
+        setVocabulary();
+        for (int part = 0; part < fingerprintSize; part++) {
+            createRandomPlanes64();
+            int bits = part < fingerprintSize?64:numHyperplanes % 64;
+            createFingerprint(index, part, bits);
+            createFingerprint(this.queries, part, bits);
+        }
+    }
+    
+    public void createFingerprint(ArrayMap<Document, long[]> map, int part, int bits) {
+        for (Map.Entry<Document, long[]> entry : map) {
+            long fp = getFingerprint(entry.getKey(), bits);
+            entry.getValue()[part] = fp;
+        }
+    }
+    
+    public ArrayMap<Document, long[]> createEmptyFingerPrints(ArrayList<Document> documents) {
+        ArrayMap<Document, long[]> result = new ArrayMap();
+        for (Document d : documents) {
+            result.add(d, new long[fingerprintSize]);
+        }
+        return result;
+    }
+    
     protected void addDocument(Document document, long[] fp) {
         index.add(document, fp);
         document.clearContent();
         document.clearTerms();
     }
 
-    @Override
     protected void getDocuments(CandidateList candidates, long[] fp, Document document) {
-        //log.info("fp size %d %s", document.docid, Long.toBinaryString(fp[0]));
-        //log.info("%d %s", document.docid, fp);
         for (Map.Entry<Document, long[]> entry : index) {
             long[] entryFp = entry.getValue();
             int dissim = 0;
@@ -96,43 +118,28 @@ public class AnnLSHCos extends AnnIndex<long[]> {
             double similarity = Math.cos((1 - (numHyperplanes - dissim) / (double) numHyperplanes) * Math.PI);
             candidates.add(entry.getKey(), similarity);
         }
+        for (Candidate c : candidates) {
+            c.measureSimilarity = similarityFunction.similarity(document, c.document);
+        }
     }
 
-    @Override
-    protected long[] getFingerprint(Document document) {
-        double[] offsetToHyperplane = new double[numHyperplanes];
+    protected long getFingerprint(Document document, int bits) {
+        double[] offsetToHyperplane = new double[bits];
         for (Object2DoubleMap.Entry<String> entry : ((TermVectorDouble) document.getModel()).object2DoubleEntrySet()) {
             float[] planeWeights = randomPlane.get(entry.getKey());
             if (planeWeights != null) {
                 double tfidf = entry.getDoubleValue();
-                for (int h = 0; h < numHyperplanes; h++) {
+                for (int h = 0; h < bits; h++) {
                     offsetToHyperplane[h] += planeWeights[h] * tfidf;
                 }
             }
         }
-        long[] fingerprint = new long[fingerprintSize];
-        Arrays.fill(fingerprint, 0);
-        for (int i = 0; i < numHyperplanes; i++) {
-            int pos = i / 64;
+        long fingerprint = 0;
+        for (int i = 0; i < bits; i++) {
             if (offsetToHyperplane[i] > 0) {
-                fingerprint[pos] |= (1l << (i % 64));
+                fingerprint |= (1l << i);
             }
         }
         return fingerprint;
-    }
-    
-    @Override
-    protected void assignMeasureSimilarity(CandidateList candidates, Document document) {
-        super.assignMeasureSimilarity(candidates, document);
-        for (Candidate c : candidates) {
-            abserror += Math.abs(c.indexSimilarity - c.measureSimilarity);
-            errorcount++;
-        }
-    }
-    
-    @Override
-    public void cleanup(Context context) {
-        context.getCounter(LSHABSERROR).increment((long)(abserror * 1000000));
-        context.getCounter(LSHERRORCOUNT).increment(errorcount);
     }
 }

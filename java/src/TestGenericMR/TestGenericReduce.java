@@ -10,6 +10,7 @@ import io.github.htools.hadoop.Conf;
 import io.github.htools.hadoop.ContextTools;
 import io.github.htools.io.Datafile;
 import io.github.htools.io.HDFSPath;
+import io.github.htools.lib.DoubleTools;
 import io.github.htools.lib.Log;
 import static io.github.htools.lib.PrintTools.sprintf;
 import java.io.IOException;
@@ -33,7 +34,8 @@ public class TestGenericReduce extends Reducer<IntWritable, Candidate, NullWrita
     enum REDUCE {
         RETRIEVED,
         SCANNED,
-        RETURNED
+        RETURNED,
+        MEANCOSINEERROR
     }
     Conf conf;
     SimilarityFile similarityFile;
@@ -41,6 +43,7 @@ public class TestGenericReduce extends Reducer<IntWritable, Candidate, NullWrita
     // the number of most similar documents to keep, configurable as "topk".
     int resultSize;
     int scanSize;
+    ArrayList<Double> cosineerror = new ArrayList();
 
     @Override
     public void setup(Context context) throws IOException {
@@ -84,10 +87,14 @@ public class TestGenericReduce extends Reducer<IntWritable, Candidate, NullWrita
         list = finalizeList(list, resultSize);
         context.getCounter(REDUCE.RETURNED).increment(list.size());
         // write the top-k most similar documents to file
+        double abserror = 0;
         for (Candidate c : list) {
             log.info("%d %d %f %f", c.id, c.source, c.indexSimilarity, c.measureSimilarity);
             writeSimilarity(c);
+            abserror += Math.abs(c.indexSimilarity - c.measureSimilarity);
         }
+        
+        this.cosineerror.add(abserror / list.size());
     }
 
     public void setScanSize(int scanSize) {
@@ -117,6 +124,8 @@ public class TestGenericReduce extends Reducer<IntWritable, Candidate, NullWrita
     @Override
     public void cleanup(Context context) {
         similarityFile.closeWrite();
+        double meanerror = DoubleTools.mean(this.cosineerror);
+        context.getCounter(REDUCE.MEANCOSINEERROR).setValue((long)(1000000 * meanerror));
     }
 
     public void writeSimilarity(Candidate candidate) throws IOException {

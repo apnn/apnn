@@ -103,6 +103,21 @@ public class Document  {
     }
     
     /**
+     * Release memory occupied by content.
+     */
+    public void clearContent() {
+        content = null;
+    }
+    
+    /**
+     * Release memory occupied by the tokenized terms, this will still keep the
+     * model to allow cossim computations.
+     */
+    public void clearTerms() {
+        terms = null;
+    }
+    
+    /**
      *
      * @return The collection ID for the document, which is extracted as the
      * numeric part of the filename.

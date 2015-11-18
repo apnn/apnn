@@ -20,8 +20,8 @@ public class NDCG extends Metric {
 
     public static Log log = new Log(NDCG.class);
 
-    public NDCG(Datafile groundtruthFile) {
-        super(groundtruthFile);
+    public NDCG(ResultSet groundtruth) {
+        super(groundtruth);
     }
 
     @Override

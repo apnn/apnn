@@ -10,25 +10,26 @@ import io.github.htools.lib.Log;
  *
  * @author Jeroen
  */
-public class Recall extends Metric {
+public class RPrecision extends Metric {
 
-    public static Log log = new Log(Recall.class);
+    public static Log log = new Log(RPrecision.class);
 
-    public Recall(ResultSet groundtruth) {
+    public RPrecision(ResultSet groundtruth) {
         super(groundtruth);
     }
 
     @Override
     public double score(SuspiciousDocument groundtruth, SuspiciousDocument retrievedDocument, int k) {
-        int countRetrievedTopK = 0;
+        int retrievedRelevant = 0;
+        int numberRelevant = groundtruth.relevantDocuments.size();
         for (SourceDocument d : retrievedDocument.relevantDocuments.values()) {
-            if (d.position <= k) {
+            if (d.position <= numberRelevant) {
                 SourceDocument groundTruthResult = groundtruth.getSourceDocument(d.docid);
                 if (groundTruthResult != null) {
-                    countRetrievedTopK++;
+                    retrievedRelevant++;
                 }
             }
         }
-        return countRetrievedTopK / (double) groundtruth.relevantDocuments.size();
+        return retrievedRelevant / (double) numberRelevant;
     }
 }

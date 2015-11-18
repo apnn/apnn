@@ -1,20 +1,19 @@
 package Eval;
 
-import io.github.htools.io.Datafile;
 import io.github.htools.lib.Log;
 
 /**
- * Computes the recall, or in this case in the absence of binary labels the
- * fraction of items in the top-k of the ground truth that are retrieved in the
- * top-k using the approach.
+ * Computes the K-Recall over the exact cosine similarity, which is the Recall@K 
+ * considering only K relevant items, therefore retrieving the maximum number 
+ * of available relevant documents at rank K will consistently return 1.
  *
  * @author Jeroen
  */
-public class Recall extends Metric {
+public class KRecall extends Metric {
 
-    public static Log log = new Log(Recall.class);
+    public static Log log = new Log(KRecall.class);
 
-    public Recall(ResultSet groundtruth) {
+    public KRecall(ResultSet groundtruth) {
         super(groundtruth);
     }
 
@@ -29,6 +28,6 @@ public class Recall extends Metric {
                 }
             }
         }
-        return countRetrievedTopK / (double) groundtruth.relevantDocuments.size();
+        return countRetrievedTopK / (double) Math.min(k, groundtruth.relevantDocuments.size());
     }
 }

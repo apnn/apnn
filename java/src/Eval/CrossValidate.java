@@ -1,7 +1,9 @@
 package Eval;
 
 import Eval.Metric.Document;
+import Eval.Metric.ResultSet;
 import Eval.Metric.SuspiciousDocument;
+import static Eval.Metric.loadFile;
 import io.github.htools.collection.ArrayMap;
 import io.github.htools.collection.HashMapMap;
 import io.github.htools.fcollection.FHashSet;
@@ -127,7 +129,7 @@ public class CrossValidate {
         for (int i = 0; i < n; i++)
             folds[i] = new FHashSet();
         for (SuspiciousDocument suspiciousDocument : metric.getGroundTruth().values()) {
-            int fold = suspiciousDocument.docid % n;
+            int fold = suspiciousDocument.docid.hashCode() % n;
             folds[fold].add(suspiciousDocument);
         }
         return folds;
@@ -136,9 +138,10 @@ public class CrossValidate {
     public static void main(String[] args) throws IOException {
         Conf conf = new Conf(args, "groundtruth rank -r {results} -f [folds]");
         Datafile gtFile = conf.getHDFSFile("groundtruth");
+        ResultSet gt = loadFile(gtFile);
         int rank = conf.getInt("rank", 100);
         int folds = conf.getInt("folds", 10);
-        NDCG ndcg = new NDCG(gtFile);
+        NDCG ndcg = new NDCG(gt);
         CrossValidate crossValidate = new CrossValidate(ndcg, rank);
         for (String resultFilename : conf.getStrings("results")) {
             Datafile resultFile = new Datafile(conf, resultFilename);

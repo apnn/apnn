@@ -3,6 +3,7 @@ package Eval;
 import SimilarityFile.SimilarityFile;
 import SimilarityFile.SimilarityWritable;
 import io.github.htools.collection.HashMapList;
+import io.github.htools.fcollection.FHashMap;
 import io.github.htools.fcollection.FHashMapIntObject;
 import io.github.htools.hadoop.Conf;
 import io.github.htools.io.Datafile;
@@ -36,8 +37,8 @@ public abstract class Metric {
     public static boolean useIndexSimilarity = false;
     private ResultSet groundTruth;
 
-    public Metric(Datafile groundtruthFile) {
-        groundTruth = loadFile(groundtruthFile);
+    public Metric(ResultSet gt) {
+        groundTruth = gt;
     }
 
     public static void main(String[] args) throws IOException, Exception {
@@ -46,40 +47,51 @@ public abstract class Metric {
         Datafile groundtruth = conf.getBoolean("hdfs", false)
                 ? conf.getHDFSFile("groundtruth")
                 : conf.getFSFile("groundtruth");
+        ResultSet gt = loadFile(groundtruth);
         int ranks[] = conf.getInts("rank");
         if (ranks.length == 0) {
             ranks = new int[]{10};
         }
-        log.info("ranks %s", ArrayTools.toString(ranks));
-        Metric metric = get(conf.get("metric"), groundtruth);
+        //log.info("ranks %s", ArrayTools.toString(ranks));
         if (conf.containsKey("ie")) {
             useIndexSimilarity = true;
         }
         HPath path = conf.getBoolean("hdfs", false)
                 ? conf.getHDFSPath("results")
                 : conf.getFSPath("results");
+        log.info("%s", path.getCanonicalPath());
         for (Datafile resultFile : path.getFiles()) {
+            log.info("%s", resultFile.getCanonicalPath());
             ResultSet retrievedDocuments = loadFile(resultFile);
-            double scores[] = new double[ranks.length];
-            for (int i = 0; i < ranks.length; i++) {
-                int rank = ranks[i];
-                HashMap<Document, Double> scorePerDocument = metric.score(retrievedDocuments, rank);
-                double avgScore = metric.mean(scorePerDocument);
-                scores[i] = avgScore;
-                log.printf("%s n=%d %s@%3d=%f", resultFile.getName(), scorePerDocument.size(), conf.get("metric"), rank, avgScore);
-            }
-            if (ranks.length > 1) {
-                log.printf("%s", ArrayTools.toString(scores, "\t"));
+            for (String metricname : conf.get("metric").split(",")) {
+                double scores[] = new double[ranks.length];
+                Metric metric = get(metricname, gt);
+                for (int i = 0; i < ranks.length; i++) {
+                    int rank = ranks[i];
+                    HashMap<Document, Double> scorePerDocument = metric.score(retrievedDocuments, rank);
+                    double avgScore = metric.mean(scorePerDocument);
+                    scores[i] = avgScore;
+                    log.printf("%s n=%d %s@%3d=%f", resultFile.getName(), scorePerDocument.size(), metricname, rank, avgScore);
+                }
+                if (ranks.length > 1) {
+                    log.printf("%s", ArrayTools.toString(scores, "\t"));
+                }
             }
         }
     }
 
-    public static Metric get(String metric, Datafile groundtruth) throws Exception {
-        switch (metric) {
-            case "NDCG":
+    public static Metric get(String metric, ResultSet groundtruth) throws Exception {
+        switch (metric.toLowerCase()) {
+            case "ndcg":
                 return new NDCG(groundtruth);
-            case "Recall":
+            case "recall":
                 return new Recall(groundtruth);
+            case "precision":
+                return new Precision(groundtruth);
+            case "rprecision":
+                return new RPrecision(groundtruth);
+            case "krecall":
+                return new KRecall(groundtruth);
             default:
                 throw new Exception("unknown metric " + metric);
         }
@@ -107,14 +119,14 @@ public abstract class Metric {
      */
     public double score(SuspiciousDocument retrievedDocument, int k) {
         SuspiciousDocument gt = groundTruth.get(retrievedDocument.docid);
-        if (gt != null) {
+        if (gt != null && gt.relevantDocuments.size() > 0) {
             return score(gt, retrievedDocument, k);
         } else {
             return 0;
         }
     }
 
-    public Map<Integer, SuspiciousDocument> getGroundTruth() {
+    public Map<String, SuspiciousDocument> getGroundTruth() {
         return Collections.unmodifiableMap(groundTruth);
     }
 
@@ -129,6 +141,7 @@ public abstract class Metric {
             SuspiciousDocument scored = retrievedDocuments.get(suspiciousDoc.docid);
             if (scored != null) {
                 double score = Metric.this.score(scored, k);
+                //log.info("%s score %f", Metric.this.getClass().getCanonicalName(), score);
                 results.put(scored, score);
             }
         }
@@ -150,7 +163,7 @@ public abstract class Metric {
      */
     public static ResultSet loadFile(Datafile file) {
         file.setBufferSize(1000000);
-        HashMapList<Integer, SourceDocument> sourceMap = new HashMapList(11100);
+        HashMapList<String, SourceDocument> sourceMap = new HashMapList(11100);
         SimilarityFile similarityFile = new SimilarityFile(file);
         for (SimilarityWritable similarity : similarityFile) {
             SourceDocument sd = new SourceDocument(similarity);
@@ -158,7 +171,7 @@ public abstract class Metric {
         }
 
         ResultSet map = new ResultSet(11100); // prevent rehashing
-        for (Map.Entry<Integer, ArrayList<SourceDocument>> entry : sourceMap.entrySet()) {
+        for (Map.Entry<String, ArrayList<SourceDocument>> entry : sourceMap.entrySet()) {
             ArrayList<SourceDocument> list = entry.getValue();
             Collections.sort(list, Collections.reverseOrder());
             SuspiciousDocument gt = new SuspiciousDocument(entry.getKey());
@@ -173,7 +186,7 @@ public abstract class Metric {
         return map;
     }
 
-    public static class ResultSet extends FHashMapIntObject<SuspiciousDocument> {
+    public static class ResultSet extends FHashMap<String, SuspiciousDocument> {
 
         public ResultSet() {
             super();
@@ -183,14 +196,14 @@ public abstract class Metric {
             super(size);
         }
 
-        public ResultSet(Map<Integer, SuspiciousDocument> map) {
+        public ResultSet(Map<String, SuspiciousDocument> map) {
             super(map);
         }
     }
 
     public static class Document {
 
-        public int docid;
+        public String docid;
 
         public String toString() {
             return "Doc " + docid;
@@ -199,13 +212,13 @@ public abstract class Metric {
 
     public static class SuspiciousDocument extends Document {
 
-        public FHashMapIntObject<SourceDocument> relevantDocuments = new FHashMapIntObject();
+        public FHashMap<String, SourceDocument> relevantDocuments = new FHashMap();
 
-        public SuspiciousDocument(int docid) {
+        public SuspiciousDocument(String docid) {
             this.docid = docid;
         }
 
-        public SourceDocument getSourceDocument(int sourceDocumentId) {
+        public SourceDocument getSourceDocument(String sourceDocumentId) {
             return relevantDocuments.get(sourceDocumentId);
         }
 

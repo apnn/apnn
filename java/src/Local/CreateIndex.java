@@ -8,8 +8,8 @@ import io.github.htools.io.compressed.ArchiveEntry;
 import io.github.htools.io.compressed.ArchiveFile;
 import io.github.htools.lib.ArgsParser;
 import io.github.htools.lib.Log;
+import io.github.htools.search.ByteSearch;
 import io.github.htools.type.TermVectorDouble;
-import io.github.htools.type.TermVectorInt;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Map;
@@ -47,8 +47,9 @@ public class CreateIndex {
             Datafile file = files.remove(0);
             ArchiveFile sourceFile = ArchiveFile.getReader(file);
             for (ArchiveEntry entry : (Iterable<ArchiveEntry>) sourceFile) {
+                String docid = getDocID(entry.getName());
                 // read the next Document with tfidf vector from the archivefile
-                Document document = Document.readTFIDF(entry);
+                Document document = Document.readTFIDF(docid, entry.readAll());
                 addDocumentToIndex(document);
             }
         }
@@ -57,7 +58,7 @@ public class CreateIndex {
     // implement this to add the next Document to the index
     public void addDocumentToIndex(Document doc) {
         // doc.docid is the collection id for the source document
-        int docid = doc.docid;
+        String docid = doc.docid;
         // doc.getModel can be casted to TermVectorDouble to process
         // and then go over each term (String containing the
         // termID (number)) and tfidf
@@ -70,6 +71,12 @@ public class CreateIndex {
         // if needed you can do model.cossim(othermodel) to get the cosine
         // between documents.
     }
+    
+    ByteSearch number = ByteSearch.create("\\d+");
+    public String getDocID(String filename) {
+        return number.extract(filename);
+    }
+    
     
     public static void main(String[] args) throws IOException, ClassNotFoundException {
         ArgsParser ap = new ArgsParser(args, "sourcepath");

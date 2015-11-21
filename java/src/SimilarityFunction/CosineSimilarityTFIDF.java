@@ -12,13 +12,12 @@ import io.github.htools.type.TermVectorInt;
  *
  * @author Jeroen
  */
-public class CosineSimilarityTFIDF implements SimilarityFunction {
+public class CosineSimilarityTFIDF extends SimilarityFunction {
     public static Log log = new Log(CosineSimilarityTFIDF.class);
-    public static Idf idf;
     public static Profiler profiler = Profiler.getProfiler(CosineSimilarityTFIDF.class.getCanonicalName());
 
     public CosineSimilarityTFIDF(Datafile vocabulary) {
-        idf = new Idf(vocabulary);
+        super(vocabulary);
     }
     
     @Override
@@ -45,7 +44,7 @@ public class CosineSimilarityTFIDF implements SimilarityFunction {
     }
 
     public void reweight(Document a) {
-        TermVectorDouble multiply = a.getModel().multiply(idf);
+        TermVectorDouble multiply = a.getModel().multiply(getIdf());
         a.setModel(multiply);
     }
 }

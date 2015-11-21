@@ -1,25 +1,40 @@
 package TestGeneric;
 
 import io.github.htools.extract.AbstractTokenizer;
+import io.github.htools.extract.Content;
 import io.github.htools.extract.DefaultTokenizer;
+import io.github.htools.extract.Extractor;
 import io.github.htools.extract.modules.ConvertHtmlASCIICodes;
 import io.github.htools.extract.modules.ConvertHtmlSpecialCodes;
 import io.github.htools.extract.modules.ConvertToLowercase;
 import io.github.htools.extract.modules.ConvertUnicodeDiacritics;
+import io.github.htools.extract.modules.ConvertWhitespace;
 import io.github.htools.extract.modules.ExtractorProcessor;
+import io.github.htools.extract.modules.MarkHL;
+import io.github.htools.extract.modules.MarkHead;
+import io.github.htools.extract.modules.MarkHeadline;
+import io.github.htools.extract.modules.MarkITAG56;
+import io.github.htools.extract.modules.MarkTTL;
+import io.github.htools.extract.modules.MarkText;
+import io.github.htools.extract.modules.MarkTitle;
 import io.github.htools.extract.modules.RemoveDanglingS;
 import io.github.htools.extract.modules.RemoveFilteredWords;
+import io.github.htools.extract.modules.RemoveHtmlComment;
 import io.github.htools.extract.modules.RemoveHtmlSpecialCodes;
-import io.github.htools.extract.modules.RemoveNonASCII;
+import io.github.htools.extract.modules.RemoveHtmlTags;
 import io.github.htools.extract.modules.RemoveNonAlphanumericQuote;
+import io.github.htools.extract.modules.RemoveSection;
 import io.github.htools.extract.modules.RemoveSingleQuotes;
 import io.github.htools.extract.modules.StemByteArray;
 import io.github.htools.extract.modules.StemTokens;
 import io.github.htools.extract.modules.TokenWordQuote;
+import io.github.htools.extract.modules.TokenizerRegex;
 import io.github.htools.lib.ClassTools;
 import io.github.htools.lib.Log;
+import io.github.htools.search.ByteSearch;
+import io.github.htools.search.ByteSearchPosition;
+import io.github.htools.search.ByteSearchSection;
 import io.github.htools.words.StopWordsMultiLang;
-import io.github.htools.words.StopWordsSmart;
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -118,10 +133,24 @@ public class Tokenizer extends AbstractTokenizer {
 
     @Override
     protected void buildProcess() {
+        this.addProcess("tokenize", ConvertWhitespace.class);
     }
 
     public void removeStopWords() {
         addEndPipeline(getStopwordRemover());
+    }
+    
+    public void removeTrecMetadata() {
+        this.addSectionMarker(MarkTitle.class, "all", "titlesection");
+        this.addSectionMarker(MarkHeadline.class, "all", "titlesection");
+        this.addSectionMarker(MarkTTL.class, "all", "titlesection");
+        this.addSectionMarker(MarkITAG56.class, "all", "titlesection");
+        this.addSectionMarker(MarkHL.class, "all", "titlesection");
+        this.addSectionMarker(MarkHead.class, "all", "titlesection");
+        this.addSectionMarker(MarkText.class, "all", "text");
+        this.insertPipeline(RemoveTrecMetadata.class, TokenizerRegex.class);
+        this.addPreProcessor(RemoveHtmlComment.class);
+        this.addPreProcessor(RemoveHtmlTags.class);
     }
 
     /**
@@ -154,4 +183,47 @@ public class Tokenizer extends AbstractTokenizer {
     public ArrayList<String> stemWords(ArrayList<String> terms) {
         return stopwordRemover.process(terms);
     }
+    
+    public static class RemoveTrecMetadata extends ExtractorProcessor {
+
+        public static Log log = new Log(RemoveSection.class);
+        ByteSearch text2 = ByteSearch.create("\\[text\\]");
+
+        public RemoveTrecMetadata(Extractor extractor, String process) {
+            super(extractor, process);
+        }
+
+        @Override
+        public void process(Content entity, ByteSearchSection section, String attribute) {
+            ArrayList<ByteSearchSection> textSection = entity.getSectionPos("text");
+            if (textSection.size() > 0) {
+                ByteSearchSection textPos = textSection.get(0);
+                ByteSearchPosition text2Pos = text2.findPos(textPos);
+                if (text2Pos.found()) {
+                    textPos = new ByteSearchSection(textPos.haystack, textPos.start, text2Pos.end,
+                    textPos.innerend, textPos.end);
+                }
+                ArrayList<ByteSearchSection> sectionPos = entity.getSectionPos("titlesection");
+                if (sectionPos.size() > 0 && sectionPos.get(0).innerend < textPos.innerstart) {
+                    ByteSearchSection tsection = sectionPos.get(0);
+                    for (int i = section.start; i < tsection.innerstart; i++) {
+                        section.haystack[i] = 0;
+                    }
+                    for (int i = tsection.innerend; i < textPos.innerstart; i++) {
+                        section.haystack[i] = 32;
+                    }
+                    for (int i = textPos.innerend; i < section.end; i++) {
+                        section.haystack[i] = 0;
+                    }
+                } else {
+                    for (int i = section.start; i < textPos.innerstart; i++) {
+                        section.haystack[i] = 0;
+                    }
+                    for (int i = textPos.innerend; i < section.end; i++) {
+                        section.haystack[i] = 0;
+                    }
+                }
+            }
+        }
+    }    
 }

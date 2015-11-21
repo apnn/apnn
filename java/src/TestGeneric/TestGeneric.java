@@ -2,11 +2,12 @@ package TestGeneric;
 
 import SimilarityFile.SimilarityFile;
 import SimilarityFile.SimilarityWritable;
+import SimilarityFunction.CosineSimilarityTFIDF;
 import TestGeneric.Candidate;
+import TestGenericMR.DocumentReader;
+import TestGenericMR.DocumentReaderTerms;
 import io.github.htools.io.Datafile;
 import io.github.htools.io.HPath;
-import io.github.htools.io.compressed.ArchiveFile;
-import io.github.htools.io.compressed.ArchiveEntry;
 import io.github.htools.lib.Log;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -23,16 +24,24 @@ import java.util.Comparator;
 public abstract class TestGeneric {
 
     public static Log log = new Log(TestGeneric.class);
+    DocumentReader reader;
     private SimilarityFile similarityFile;
     protected AnnIndex index;
     private int K = 10;
 
     public TestGeneric(Comparator<SimilarityWritable> comparator) throws IOException, ClassNotFoundException {
         index = getIndex(comparator);
+        reader = getDocumentReader();
     }
 
     public TestGeneric(Datafile vocabulary, Comparator<SimilarityWritable> comparator) throws IOException, ClassNotFoundException {
-        index = getIndex(vocabulary, comparator);
+        Document.setSimilarityFunction(new CosineSimilarityTFIDF(vocabulary));
+        index = getIndex(comparator);
+        reader = getDocumentReader();
+    }
+    
+    public DocumentReader getDocumentReader() {
+        return new DocumentReaderTerms();
     }
 
     protected void setupOutput(Datafile outputFile) throws IOException {
@@ -48,14 +57,14 @@ public abstract class TestGeneric {
      * Writes the top-k most similar source documents for a given suspicious
      * document to the SimilarityFile.
      *
-     * @param suspiciousDocument
+     * @param queryDocument
      * @param topKSourceDocuments
      * @throws IOException
      */
-    protected void writeSimilarities(Document suspiciousDocument,
+    protected void writeSimilarities(Document queryDocument,
             CandidateList topKSourceDocuments) throws IOException {
         for (Candidate candidate : topKSourceDocuments.sorted()) {
-            candidate.id = suspiciousDocument.docid;
+            candidate.id = queryDocument.docid;
             candidate.write(similarityFile);
         }
     }
@@ -71,14 +80,12 @@ public abstract class TestGeneric {
         ArrayList<Datafile> files = sourcePath.getFiles();
         while (files.size() > 0) {
             Datafile file = files.remove(0);
-            ArchiveFile sourceFile = ArchiveFile.getReader(file);
-            for (ArchiveEntry entry : (Iterable<ArchiveEntry>) sourceFile) {
-                Document document = Document.read(entry);
-                index.getSimilarityFunction().reweight(document);
-                //log.info("%d %s", document.docid, document.getTerms());
-                index.add(document);
+            log.info("%s", file.getCanonicalPath());
+            for (Document d : reader.iterableDocuments(file)) {
+                index.add(d);
             }
         }
+        index.finishIndex();
     }
 
     /**
@@ -86,17 +93,16 @@ public abstract class TestGeneric {
      * and retrieves the k-most similar source documents from the index. Calls
      * processTopKNN to process the results (e.g. write to file).
      *
-     * @param suspiciousPath
+     * @param queryPath
      * @throws IOException
      */
-    public void streamSuspiciousDocuments(HPath suspiciousPath) throws IOException {
-        for (Datafile file : suspiciousPath.getFiles()) {
-            ArchiveFile suspiciousFile = ArchiveFile.getReader(file);
-            for (ArchiveEntry entry : (Iterable<ArchiveEntry>) suspiciousFile) {
-                Document suspiciousDocument = Document.read(entry);
-                index.getSimilarityFunction().reweight(suspiciousDocument);
-                CandidateList topknn = index.getNNs(suspiciousDocument, K);
-                processTopKNN(suspiciousDocument, topknn);
+    public void streamQueryDocuments(HPath queryPath) throws IOException {
+        for (Datafile file : queryPath.getFiles()) {
+            log.info("%s", file.getCanonicalPath());
+            for (Document d : reader.iterableDocuments(file)) {
+                log.info("Document %s", d.docid);
+                CandidateList topknn = index.getNNs(d, K);
+                processTopKNN(d, topknn);
             }
         }
     }
@@ -117,10 +123,4 @@ public abstract class TestGeneric {
      * @throws ClassNotFoundException 
      */
     public abstract AnnIndex getIndex(Comparator<SimilarityWritable> comparator) throws ClassNotFoundException;
-    
-    /**
-     * @return an instance of the AnnIndex class used.
-     * @throws ClassNotFoundException 
-     */
-    public abstract AnnIndex getIndex(Datafile vocabulary, Comparator<SimilarityWritable> comparator) throws ClassNotFoundException;
 }

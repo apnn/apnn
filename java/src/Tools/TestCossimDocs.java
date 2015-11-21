@@ -17,8 +17,8 @@ public class TestCossimDocs {
         Conf conf = new Conf(args, "a b");
         byte[] contentA = new Datafile(conf.get("a")).readFully();
         byte[] contentB = new Datafile(conf.get("b")).readFully();
-        Document docA = new Document(0, contentA);
-        Document docB = new Document(0, contentB);
+        Document docA = new Document("0", contentA);
+        Document docB = new Document("0", contentB);
         log.info("%f %f %f", docA.getModel().magnitude(), docB.getModel().magnitude(), docA.getModel().cossim(docB.getModel()));
     }
 }

@@ -1,7 +1,7 @@
 package VocabularyRelevant;
 
 import Vocabulary.*;
-import TestGenericMR.StringPairInputFormat;
+import TestGenericMR.SourceQueryPairInputFormat;
 import io.github.htools.lib.Log;
 import io.github.htools.hadoop.Conf;
 import io.github.htools.hadoop.Job;

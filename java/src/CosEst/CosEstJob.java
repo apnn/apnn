@@ -1,7 +1,6 @@
 package CosEst;
 
-import TestGeneric.Tokenizer;
-import TestGenericMR.TestGenericJobIE;
+import TestGenericMR.TestGenericJob;
 import io.github.htools.lib.Log;
 import io.github.htools.hadoop.Conf;
 import org.apache.hadoop.conf.Configuration;
@@ -29,16 +28,17 @@ public class CosEstJob {
 
     public static void main(String[] args) throws Exception {
 
-        Conf conf = new Conf(args, "sourcepath suspiciouspath output");
+        Conf conf = new Conf(args, "sourcepath querypath output -v vocabulary");
+        TestGenericJob.setAnnIndex(conf, AnnCosEst.class);
 
-        TestGenericJobIE job = new TestGenericJobIE(conf,
+        TestGenericJob job = new TestGenericJob(conf,
                 conf.get("sourcepath"),
-                conf.get("suspiciouspath"),
-                conf.get("output")
+                conf.get("querypath"),
+                conf.get("output"),
+                conf.get("vocabulary")
         );
 
-        job.setAnnIndex(AnnCosEst.class);
-
+        job.useDocumentTFIDF();
         // don't remove stopwords when creating shingles
         //job.setTokenizer(Tokenizer.class);
 

@@ -1,12 +1,9 @@
 package CosEst;
 
 import SimilarityFile.SimilarityWritable;
-import SimilarityFunction.CosineSimilarityTFIDF;
-import SimilarityFunction.SimilarityFunction;
 import TestGeneric.AnnIndex;
 import TestGeneric.CandidateList;
 import TestGeneric.Document;
-import Vocabulary.Idf;
 import io.github.htools.collection.HashMapDouble;
 import io.github.htools.collection.TopKMap;
 import io.github.htools.fcollection.FHashMapList;
@@ -34,15 +31,15 @@ public class AnnCosEst extends AnnIndex<FHashMapObjectDouble<String>> {
     // inverted list per term, each entry being a Document and the n-tfidf
     protected FHashMapList<String, KV<Document, Double>> mapTerms;
     
-    public AnnCosEst(SimilarityFunction similarityFunction,
+    public AnnCosEst(
             Comparator<SimilarityWritable> comparator,
             int termssize) throws ClassNotFoundException {
-        super(similarityFunction, comparator);
+        super(comparator);
         initialize(termssize);
     }
 
-    public AnnCosEst(SimilarityFunction function, Comparator<SimilarityWritable> comparator, Configuration conf) throws ClassNotFoundException {
-        this(function, comparator, CosEstJob.getTermsSize(conf));
+    public AnnCosEst(Comparator<SimilarityWritable> comparator, Configuration conf) throws ClassNotFoundException {
+        this(comparator, CosEstJob.getTermsSize(conf));
     }
 
     private void initialize(int shingleSize) {
@@ -68,7 +65,7 @@ public class AnnCosEst extends AnnIndex<FHashMapObjectDouble<String>> {
             ObjectArrayList<KV<Document, Double>> list = mapTerms.get(fpentry.getKey());
             if (list != null) {
                 for (KV<Document, Double> doc : list) {
-                    log.info("%d %s %d %f %f", document.docid, fpentry.getKey(), doc.key.docid, tfidf, doc.value);
+                    log.info("%s %s %s %f %f", document.docid, fpentry.getKey(), doc.key.docid, tfidf, doc.value);
                     docCount.add(doc.key, doc.value * tfidf);
                 }
             }

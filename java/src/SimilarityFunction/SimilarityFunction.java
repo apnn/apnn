@@ -1,17 +1,33 @@
 package SimilarityFunction;
 
 import TestGeneric.Document;
+import Vocabulary.Idf;
+import io.github.htools.io.Datafile;
 
 /**
  *
  * @author Jeroen
  */
-public interface SimilarityFunction {
-    public double similarity(Document a, Document b);
+public abstract class SimilarityFunction {
+    private Idf idf;
+    Datafile vocabularyfile;
+   
+    public SimilarityFunction(Datafile vocabulary) {
+        vocabularyfile = vocabulary;
+    }
     
-    public int getComparisons();
+    public Idf getIdf() {
+        if (idf == null) {
+            idf = new Idf(vocabularyfile);
+        }
+        return idf;
+    }
+        
+    public abstract double similarity(Document a, Document b);
     
-    public long getComparisonsTime();
+    public abstract int getComparisons();
     
-    public void reweight(Document a);
+    public abstract long getComparisonsTime();
+    
+    public abstract void reweight(Document a);
 }

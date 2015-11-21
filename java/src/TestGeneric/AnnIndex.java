@@ -1,7 +1,6 @@
 package TestGeneric;
 
 import SimilarityFile.SimilarityWritable;
-import SimilarityFunction.SimilarityFunction;
 import io.github.htools.lib.Log;
 import io.github.htools.lib.Profiler;
 import java.io.IOException;
@@ -30,18 +29,12 @@ public abstract class AnnIndex<T> {
     public static Log log = new Log(AnnIndex.class);
     private static final Profiler GETDOCUMENTSTIME = Profiler.getProfiler("GETDOCUMENTSTIME");
     private static final Profiler FINGERPRINTTIME = Profiler.getProfiler("FINGERPRINTTIME");
-    protected SimilarityFunction similarityFunction;
     protected Comparator<SimilarityWritable> comparator;
     public long countDocCodepoints;
     public long countComparedDocCodepoints;
 
-    public AnnIndex(SimilarityFunction similarityFunction, Comparator<SimilarityWritable> comparator) throws ClassNotFoundException {
-        this.similarityFunction = similarityFunction;
+    public AnnIndex(Comparator<SimilarityWritable> comparator) {
         this.comparator = comparator;
-    }
-
-    public SimilarityFunction getSimilarityFunction() {
-        return similarityFunction;
     }
     
     /**
@@ -61,6 +54,8 @@ public abstract class AnnIndex<T> {
      */
     protected abstract void addDocument(Document document, T fingerprint);
 
+    public void finishIndex() {}
+    
     /**
      * @param list
      * @param fingerprint a fingerprint for the document, or null when
@@ -71,24 +66,6 @@ public abstract class AnnIndex<T> {
      * query document.
      */
     protected abstract void getDocuments(CandidateList list, T fingerprint, Document query);
-
-    /**
-     * Retrieve the (at most) k-most similar documents from the index for the
-     * query document and add the query document to the index afterwards.
-     *
-     * @param query a new document for which the most similar k documents are
-     * retrieved and which is then added to the index itself.
-     * @param k the maximum number of documents retrieved
-     * @return
-     */
-    public CandidateList getNNsAndAdd(Document query, int k) throws IOException {
-        FINGERPRINTTIME.startTime();
-        T fingerprint = getFingerprint(query);
-        FINGERPRINTTIME.addAvgTime();
-        CandidateList topk = getNNs(query, fingerprint, k);
-        addDocument(query, fingerprint);
-        return topk;
-    }
 
     /**
      * Retrieve a list of at most k-most similar indexed documents for the given
@@ -110,7 +87,7 @@ public abstract class AnnIndex<T> {
      *
      * @param document
      */
-    public void add(Document document) throws IOException {
+    public void add(Document document) {
         FINGERPRINTTIME.startTime();
         T fingerprint = getFingerprint(document);
         FINGERPRINTTIME.addAvgTime();
@@ -145,7 +122,7 @@ public abstract class AnnIndex<T> {
     protected void assignMeasureSimilarity(CandidateList candidates, Document document) {
         for (Candidate candidate : candidates) {
             //log.info("%d %d", document.docid, candidate.document.docid);
-            candidate.measureSimilarity = similarityFunction.similarity(document, candidate.document);
+            candidate.measureSimilarity = document.similarity(candidate.document);
             candidate.id = document.docid;
         }
     }

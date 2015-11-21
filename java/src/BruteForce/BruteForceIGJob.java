@@ -29,15 +29,16 @@ public class BruteForceIGJob {
 
     public static void main(String[] args) throws Exception {
 
-        Conf conf = new Conf(args, "sourcepath suspiciouspath output");
+        Conf conf = new Conf(args, "sourcepath suspiciouspath output vocabulary");
         conf.setTaskTimeout(1800000);
+        TestGenericJob.setSimilarityFunction(conf, NormalizedInformationGain.class);
         
         TestGenericJob job = new TestGenericJob(conf,
                 conf.get("sourcepath"),
                 conf.get("suspiciouspath"),
-                conf.get("output"));
+                conf.get("output"),
+                conf.get("vocabulary"));
 
-        job.setSimilarityFunction(NormalizedInformationGain.class);
 
         job.waitForCompletion(true);
     }

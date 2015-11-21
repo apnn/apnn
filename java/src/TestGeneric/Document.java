@@ -1,8 +1,7 @@
 package TestGeneric;
 
-import TestGenericMR.TestGenericJob;
+import SimilarityFunction.SimilarityFunction;
 import io.github.htools.collection.ArrayMap;
-import io.github.htools.io.compressed.ArchiveEntry;
 import io.github.htools.lib.ByteTools;
 import io.github.htools.lib.Log;
 import io.github.htools.lib.MathTools;
@@ -14,7 +13,6 @@ import io.github.htools.type.TermVectorEntropy;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Map;
-import org.apache.hadoop.conf.Configuration;
 
 /**
  * A Document in the PAN11 collection, that is stored in a ArchiveFile (e.g.
@@ -32,26 +30,25 @@ import org.apache.hadoop.conf.Configuration;
  *
  * @author jeroen
  */
-public class Document  {
+public class Document {
 
     public static Log log = new Log(Document.class);
-    public static Tokenizer tokenizer = new TokenizerRemoveStopwords();
+    private static Tokenizer tokenizer;
+    public static ByteSearch wordsplitter = ByteSearch.create("\\S+");
+    private static SimilarityFunction similarityFunction;
     static boolean stopwordsRemoved;
-    static ByteSearch docNumber = ByteSearch.create("\\d+");
 
-    public int docid;
+    public String docid;
     private ArrayList<String> terms;
     private TermVector model;
     private byte[] content;
 
-    public Document(int docid, byte[] content) throws IOException {
-        // note that tokenizer operates on the content in situ, therefore
-        // content will be cleaned of any not text, lowercased, space will be 
-        // trimmed an, however it will not be stemmed and stop words will not be removed.
-        this(docid, content, tokenizer.tokenize(content));
+    public Document(String docid, byte[] content) throws IOException {
+        this.docid = docid;
+        this.content = content;
     }
 
-    public Document(int docid, Map<String, Double> tfidf) throws IOException {
+    public Document(String docid, Map<String, Double> tfidf) throws IOException {
         // note that tokenizer operates on the content in situ, therefore
         // content will be cleaned of any not text, lowercased, space will be 
         // trimmed an, however it will not be stemmed and stop words will not be removed.
@@ -59,56 +56,68 @@ public class Document  {
         this.model = new TermVectorDouble(tfidf);
     }
 
-    public Document(int docid, byte[] content, ArrayList<String> terms) throws IOException {
+    public Document(String docid, byte[] content, ArrayList<String> terms) throws IOException {
         this.docid = docid;
         setTerms(terms);
         // toBytes() strips the \0 bytes that were used to erase non-content.
         this.content = ByteTools.toBytes(content, 0, content.length);
     }
 
-    public static Document read(ArchiveEntry entry) throws IOException {
-        byte[] readAll = entry.readAll();
-        int docid = getDocNumber(entry.getName());
-        return new Document(docid, readAll);
+    public static Tokenizer getTokenizer() {
+        if (tokenizer == null)
+            tokenizer = new Tokenizer();
+        return tokenizer;
     }
     
-    public static Document readTFIDF(ArchiveEntry entry) throws IOException {
-        ByteSearch eol = ByteSearch.create("\\n");
+    public static void setTokenizer(Tokenizer tokenizer) {
+        Document.tokenizer = tokenizer;
+    }
+    
+    public static void setSimilarityFunction(SimilarityFunction function) {
+        similarityFunction = function;
+    }
+
+    public static SimilarityFunction getSimilarityFunction() {
+        return similarityFunction;
+    }
+
+    public static Document read(String id, ByteSearchSection section) throws IOException {
+        byte[] readAll = section.toBytes();
+        return new Document(id, readAll);
+    }
+
+    public static Document readContent(String id, byte[] content) throws IOException {
+        return new Document(id, content);
+    }
+
+    public static Document readTerms(String id, byte[] content) throws IOException {
+        return new Document(id, content, wordsplitter.extractAll(content));
+    }
+
+    static ByteSearch eol = ByteSearch.create("\\n");
+
+    public static Document readTFIDF(String id, byte[] content) throws IOException {
         ByteSearch space = ByteSearch.WHITESPACE;
         ArrayMap<String, Double> tfidf = new ArrayMap();
-        ArrayList<ByteSearchSection> split = eol.split(entry.readAll());
+        ArrayList<ByteSearchSection> split = eol.split(content);
         for (ByteSearchSection section : split) {
             ArrayList<ByteSearchSection> parts = space.split(section);
             tfidf.add(parts.get(0).toString(), Double.parseDouble(parts.get(1).toString()));
         }
-        int docid = getDocNumber(entry.getName());
-        return new Document(docid, tfidf);
-    }
-    
-    /**
-     * If a tokenizer was configured, Document will use this tokenizer.
-     *
-     * @param conf
-     */
-    public static void setTokenizer(Configuration conf) {
-        Class<? extends Tokenizer> tokenizerClass
-                = TestGenericJob.getTokenizerClass(conf);
-        if (tokenizerClass != null) {
-            tokenizer = Tokenizer.get(tokenizerClass);
-        }
+        return new Document(id, tfidf);
     }
 
     public void setModel(TermVector v) {
         this.model = v;
     }
-    
+
     /**
      * Release memory occupied by content.
      */
     public void clearContent() {
         content = null;
     }
-    
+
     /**
      * Release memory occupied by the tokenized terms, this will still keep the
      * model to allow cossim computations.
@@ -116,13 +125,13 @@ public class Document  {
     public void clearTerms() {
         terms = null;
     }
-    
+
     /**
      *
      * @return The collection ID for the document, which is extracted as the
      * numeric part of the filename.
      */
-    public int getId() {
+    public String getId() {
         return docid;
     }
 
@@ -138,12 +147,8 @@ public class Document  {
      */
     public TermVector getModel() {
         if (model == null) {
-            //log.info("getModel %s", terms);
-            if (!stopwordsRemoved) {
-                model = new TermVectorEntropy(tokenizer.removeStopwords(terms));
-            } else {
-                model = new TermVectorEntropy(terms);
-            }
+            model = new TermVectorEntropy(getTermsNoStopwords());
+            similarityFunction.reweight(this);
         }
         return model;
     }
@@ -165,29 +170,44 @@ public class Document  {
      * Warning, using this will clear the getContent() representation.
      */
     public ArrayList<String> getTerms() {
+        if (terms == null) {
+            terms = tokenizer.tokenize(getContent());
+        }
         return terms;
     }
 
-    /**
-     * @param docname filename of the document
-     * @return the number form the filename, which indicates the documentID
-     * @throws IOException
-     */
-    public static int getDocNumber(String docname) {
-        return Integer.parseInt(docNumber.extract(docname));
+    public ArrayList<String> getTermsNoStopwords() {
+        ArrayList<String> result = new ArrayList();
+        for (String term : getTerms()) {
+            if (!tokenizer.isStopword(term)) {
+                result.add(term);
+            }
+        }
+        return result;
+    }
+
+    public byte[] getTokenizedContent() {
+        if (terms == null) {
+            getTerms();
+        }
+        return getContent();
     }
 
     @Override
     public int hashCode() {
-        return MathTools.hashCode(docid);
+        return MathTools.hashCode(docid.hashCode());
     }
 
     @Override
     public boolean equals(Object o) {
-        return (o instanceof Document) && (((Document) o).docid == docid);
+        return (o instanceof Document) && (((Document) o).docid.equals(docid));
     }
 
     public int compareTo(Document o) {
-        return docid - o.docid;
+        return docid.compareTo(o.docid);
+    }
+
+    public double similarity(Document o) {
+        return similarityFunction.similarity(this, o);
     }
 }

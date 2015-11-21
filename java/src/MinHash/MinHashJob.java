@@ -1,16 +1,17 @@
 package MinHash;
 
+import SimilarityFile.IndexSimilarity;
+import SimilarityFile.SimilarityFile;
 import SimilarityFunction.CosineSimilarityTFIDF;
+import TestGeneric.AnnIndex;
 import TestGenericMR.TestGenericJob;
 import io.github.htools.lib.Log;
 import io.github.htools.hadoop.Conf;
-import io.github.htools.lib.ArrayTools;
 import static io.github.htools.lib.PrintTools.sprintf;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.mapreduce.Job;
 
 /**
  * Computes the cosine similarity between all suspicious and source documents of
@@ -35,8 +36,8 @@ public class MinHashJob extends TestGenericJob {
     public static final String MINHASHFUNCTIONS = "hashfunctions";
     public static final String MINHASHBANDWDITH = "bandwidth";
 
-    public MinHashJob(Conf conf, String sources, String suspicious, String output) throws IOException, NoSuchMethodException, InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException {
-        super(conf, sources, suspicious, output);
+    public MinHashJob(Conf conf, String sources, String suspicious, String output, String vocabulary) throws IOException, NoSuchMethodException, InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException {
+        super(conf, sources, suspicious, output, vocabulary);
     }
     
     @Override
@@ -47,22 +48,18 @@ public class MinHashJob extends TestGenericJob {
     
     public static void main(String[] args) throws Exception {
 
-        Conf conf = new Conf(args, "sourcepath suspiciouspath output");
-
-        log.info("%s", conf.get("vocabulary"));
+        Conf conf = new Conf(args, "sourcepath suspiciouspath output -v vocabulary -h hashfunctions -b bandwidth");
+        MinHashJob.setAnnIndex(conf, AnnMinHash.class);
         
+        AnnMinHash m = new AnnMinHash(IndexSimilarity.singleton, conf);
+        AnnIndex n = TestGenericJob.getAnnIndex(IndexSimilarity.singleton, conf);
         MinHashJob job = new MinHashJob(conf,
                 conf.get("sourcepath"),
                 conf.get("suspiciouspath"),
-                conf.get("output")
+                conf.get("output"),
+                conf.get("vocabulary")
         );
                 
-        job.setAnnIndex(AnnMinHash.class);
-        
-        // configuration example (used as default):
-        // job.setTopK(100);
-        job.setSimilarityFunction(CosineSimilarityTFIDF.class);
-        
         job.waitForCompletion(true);
     }
     
@@ -72,7 +69,9 @@ public class MinHashJob extends TestGenericJob {
      * @throws ClassNotFoundException
      */
     public static int getNumHashFunctions(Configuration conf) {
-        return conf.getInt(MINHASHFUNCTIONS, 240);
+        int minhashfunctions = conf.getInt(MINHASHFUNCTIONS, 240);
+        log.info("getNumHashFuctions %d", minhashfunctions);
+        return minhashfunctions;
     }    
 
     /**

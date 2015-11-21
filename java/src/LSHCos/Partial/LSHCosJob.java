@@ -1,7 +1,7 @@
 package LSHCos.Partial;
 
 import LSHCos.*;
-import TestGenericMR.TestGenericJobIE;
+import TestGenericMR.TestGenericJob;
 import io.github.htools.lib.Log;
 import io.github.htools.hadoop.Conf;
 import org.apache.hadoop.conf.Configuration;
@@ -30,16 +30,18 @@ public class LSHCosJob {
 
     public static void main(String[] args) throws Exception {
 
-        Conf conf = new Conf(args, "sourcepath suspiciouspath output");
+        Conf conf = new Conf(args, "sourcepath suspiciouspath output -v vocabulary");
         conf.setTaskTimeout(30000000);
         conf.setMapMemoryMB(4096);
 
-        TestGenericJobIE job = new TestGenericJobIE(conf,
+        TestGenericJob job = new TestGenericJob(conf,
                 conf.get("sourcepath"),
                 conf.get("suspiciouspath"),
-                conf.get("output")
+                conf.get("output"),
+                conf.get("vocabulary")
         );
 
+        job.useDocumentTFIDF();
         job.setMapperClass(LSHCosMap.class);
         
         // don't remove stopwords when creating shingles

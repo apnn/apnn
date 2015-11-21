@@ -1,22 +1,19 @@
 package AnalyzeCosineSimilarity;
 
 import SimilarityFunction.CosineSimilarityTFIDF;
-import SimilarityFunction.SimilarityFunction;
 import TestGeneric.Document;
-import TestGenericMR.StringPairInputFormat.Value;
-import static TestGenericMR.TestGenericMap.iterableDocuments;
-import static TestGenericMR.TestGenericMap.readDocuments;
+import TestGenericMR.DocumentReader;
+import TestGenericMR.DocumentReaderTerms;
+import TestGenericMR.SourceQueryPairInputFormat.Pair;
 import io.github.htools.collection.TopKMap;
 import io.github.htools.hadoop.Conf;
 import io.github.htools.hadoop.ContextTools;
 import io.github.htools.io.Datafile;
 import io.github.htools.lib.Log;
-import static io.github.htools.lib.PrintTools.sprintf;
 import io.github.htools.type.TermVectorDouble;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Map;
-import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
 
@@ -32,35 +29,39 @@ import org.apache.hadoop.mapreduce.Mapper;
  *
  * @author jeroen
  */
-public class AnalyzeMap extends Mapper<Integer, Value, IntWritable, Result> {
+public class AnalyzeMap extends Mapper<Integer, Pair, Text, Result> {
 
     public static final Log log = new Log(AnalyzeMap.class);
     Conf conf;
-    SimilarityFunction similarityFunction;
+    DocumentReader documentreader;
 
-    protected IntWritable outKey = new IntWritable();
+    protected Text outKey = new Text();
 
     @Override
     public void setup(Context context) throws IOException {
         conf = ContextTools.getConfiguration(context);
-        similarityFunction = new CosineSimilarityTFIDF(new Datafile(conf, "input/pan11/vocabulary"));
-        Document.setTokenizer(conf);
+        documentreader = new DocumentReaderTerms();
+        Document.setSimilarityFunction(new CosineSimilarityTFIDF(new Datafile(conf, "input/pan11/vocabulary")));
     }
     
     @Override
-    public void map(Integer key, Value value, Context context) throws IOException, InterruptedException {
+    public void map(Integer key, Pair value, Context context) throws IOException, InterruptedException {
         // read all source documents and add to AnnIndex
-        ArrayList<Document> sourceDocuments = readDocuments(conf, value.sourcefile, similarityFunction);
+        Datafile sourceDatafile = new Datafile(conf, value.sourcefile);
+        ArrayList<Document> sourceDocuments = 
+                documentreader.readDocuments(sourceDatafile);
 
         // iterate over all suspicious documents
-        for (Document suspiciousDocument : iterableDocuments(conf, value.suspiciousfile, similarityFunction)) {
+        Datafile suspDatafile = new Datafile(conf, value.queryfile);
+        for (Document suspiciousDocument : 
+                documentreader.iterableDocuments(suspDatafile)) {
             double maxsim = 0;
             TopKMap<Double, String> topTerms;
             Result outValue = new Result();
             
             // retrieve the k most similar source documents from the index
             for (Document s : sourceDocuments) {
-                double similarity = similarityFunction.similarity(s, suspiciousDocument);
+                double similarity = s.similarity(suspiciousDocument);
                 if (similarity > maxsim) {
                     maxsim = similarity;
                     topTerms = new TopKMap(5);

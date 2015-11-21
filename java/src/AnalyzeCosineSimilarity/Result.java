@@ -17,11 +17,11 @@ public class Result extends Writable {
     public static Log log = new Log(Result.class);
     double similarity;
     double magnitude;
-    int docid;
-    int id;
+    String docid;
+    String id;
     ArrayMap<Double, String> map;
     
-    public void set(int id, int docid, double similarity, double magnitude, TopKMap<Double, String> map) {
+    public void set(String id, String docid, double similarity, double magnitude, TopKMap<Double, String> map) {
         this.id = id;
         this.docid = docid;
         this.similarity = similarity;
@@ -56,8 +56,8 @@ public class Result extends Writable {
 
     @Override
     public void readFields(BufferReaderWriter reader) {
-        id = reader.readInt();
-        docid = reader.readInt();
+        id = reader.readString();
+        docid = reader.readString();
         similarity = reader.readDouble();
         magnitude = reader.readDouble();
         int size = reader.readInt();

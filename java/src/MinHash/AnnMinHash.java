@@ -1,7 +1,6 @@
 package MinHash;
 
 import SimilarityFile.SimilarityWritable;
-import SimilarityFunction.SimilarityFunction;
 import TestGeneric.AnnIndex;
 import TestGeneric.CandidateList;
 import TestGeneric.Document;
@@ -22,14 +21,14 @@ public class AnnMinHash extends AnnIndex<int[]> {
     protected MinHash minhash;
     protected FHashMapIntList<Document> minHashTables[];
     
-    public AnnMinHash(SimilarityFunction similarityFunction, Comparator<SimilarityWritable> comparator, int numHashFunctions, int bandwidth) throws ClassNotFoundException {
-        super(similarityFunction, comparator);
-        log.info("AnnMinhash constructor %d %d", numHashFunctions, bandwidth);
+    public AnnMinHash(Comparator<SimilarityWritable> comparator, int numHashFunctions, int bandwidth)  {
+        super(comparator);
+        //log.info("AnnMinhash constructor %d %d", numHashFunctions, bandwidth);
         initialize( numHashFunctions, bandwidth );
     }
     
-    public AnnMinHash(SimilarityFunction function, Comparator<SimilarityWritable> comparator, Configuration conf) throws ClassNotFoundException {
-        this(function, comparator, MinHashJob.getNumHashFunctions(conf), MinHashJob.getBandwidth(conf));
+    public AnnMinHash(Comparator<SimilarityWritable> comparator, Configuration conf) {
+        this(comparator, MinHashJob.getNumHashFunctions(conf), MinHashJob.getBandwidth(conf));
     }
     
     private void initialize(int numHashFunctions, int bandwidth) {

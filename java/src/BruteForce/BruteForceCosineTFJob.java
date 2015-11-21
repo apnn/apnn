@@ -1,8 +1,6 @@
 package BruteForce;
 
-import SimilarityFunction.CosineSimilarityTF;
 import TestGenericMR.TestGenericJob;
-import TestGenericMR.TestGenericJobIE;
 import io.github.htools.lib.Log;
 import io.github.htools.hadoop.Conf;
 import java.io.IOException;
@@ -29,14 +27,15 @@ public class BruteForceCosineTFJob {
 
     public static void main(String[] args) throws IOException, ClassNotFoundException, InterruptedException {
 
-        Conf conf = new Conf(args, "sourcepath suspiciouspath output");
+        Conf conf = new Conf(args, "sourcepath suspiciouspath output vocabulary");
         conf.setTaskTimeout(1000000);
+        TestGenericJob.setAnnIndex(conf, AnnBruteForceTF.class);
         
-        TestGenericJobIE job = new TestGenericJobIE(conf,
+        TestGenericJob job = new TestGenericJob(conf,
                 conf.get("sourcepath"),
                 conf.get("suspiciouspath"),
-                conf.get("output"));
-        job.setAnnIndex(AnnBruteForceTF.class);
+                conf.get("output"),
+                conf.get("vocabulary"));
         // configuration example (used as default):
         // job.setSimilarityFunction(CosineSimilarity.class);
         

@@ -16,11 +16,11 @@ import java.util.Comparator;
 public class SimilarityWritable extends Writable<SimilarityFile> {
 
     // id of a suspicious document
-    public int id;
+    public String id;
     // the similarity of the source document to the suspicious document
     public double measureSimilarity;
     // id of the source document
-    public int source;
+    public String source;
     public double indexSimilarity;
 
     public SimilarityWritable() {
@@ -37,14 +37,14 @@ public class SimilarityWritable extends Writable<SimilarityFile> {
 
     @Override
     public int hashCode() {
-        return MathTools.hashCode(id, source);
+        return MathTools.hashCode(id.hashCode(), source.hashCode());
     }
 
     @Override
     public boolean equals(Object o) {
         if (o instanceof SimilarityWritable) {
             SimilarityWritable oo = (SimilarityWritable) o;
-            return oo.id == id && oo.source == source;
+            return oo.id.equals(id) && oo.source.equals(source);
         }
         return false;
     }
@@ -67,14 +67,14 @@ public class SimilarityWritable extends Writable<SimilarityFile> {
 
     @Override
     public void readFields(BufferReaderWriter reader) {
-        id = reader.readInt();
-        source = reader.readInt();
+        id = reader.readString();
+        source = reader.readString();
         measureSimilarity = reader.readDouble();
         indexSimilarity = reader.readDouble();
     }
 
     @Override
-    public void write(SimilarityFile file) throws IOException {
+    public void write(SimilarityFile file) {
         file.id.set(id);
         file.source.set(source);
         file.similarity.set(measureSimilarity);

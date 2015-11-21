@@ -12,11 +12,12 @@ import io.github.htools.type.TermVectorInt;
  *
  * @author Jeroen
  */
-public class CosineSimilarityTF implements SimilarityFunction {
+public class CosineSimilarityTF extends SimilarityFunction {
     public static Log log = new Log(CosineSimilarityTF.class);
     public static Profiler profiler = Profiler.getProfiler(CosineSimilarityTF.class.getCanonicalName());
 
-    public CosineSimilarityTF() {
+    public CosineSimilarityTF(Datafile vocabularyfile) {
+        super(vocabularyfile);
     }
     
     @Override

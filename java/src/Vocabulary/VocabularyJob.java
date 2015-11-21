@@ -1,12 +1,10 @@
 package Vocabulary;
 
-import TestGenericMR.StringPairInputFormat;
 import io.github.htools.lib.Log;
 import io.github.htools.hadoop.Conf;
+import io.github.htools.hadoop.InputFormat;
 import io.github.htools.hadoop.Job;
-import io.github.htools.hadoop.io.StringInputFormat;
-import io.github.htools.hadoop.io.archivereader.ArchiveInputFormat;
-import io.github.htools.hadoop.io.archivereader.ReaderWikipedia;
+import io.github.htools.hadoop.io.DatafileInputFormat;
 import io.github.htools.io.HDFSPath;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -36,6 +34,7 @@ public class VocabularyJob {
 
         Job job = new Job(conf, input, out);
         job.setMaxMapAttempts(100);
+        InputFormat.setNonSplitable(job);
         setupInput(job, input);
 
         job.setNumReduceTasks(1);
@@ -50,7 +49,7 @@ public class VocabularyJob {
     }
     
     static void setupInput(Job job, String input) throws IOException {
-        job.setInputFormatClass(StringInputFormat.class);
+        job.setInputFormatClass(DatafileInputFormat.class);
         ArrayList<String> sourceFiles = new ArrayList();
 
         // get lists of files under the paths of sources and suspicious on HDFS
@@ -62,7 +61,7 @@ public class VocabularyJob {
         // add all possible combinations of a sourceFile with a SuspiciousFile
         // to the input that is mapped.
         for (String sourceFile : sourceFiles) {
-                StringInputFormat.add(job, sourceFile);
+            DatafileInputFormat.addDirs(job, sourceFile);
         }
     }
     

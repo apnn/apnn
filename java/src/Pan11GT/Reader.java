@@ -4,7 +4,6 @@ import SimilarityFile.SimilarityFile;
 import SimilarityFile.SimilarityWritable;
 import io.github.htools.collection.ArrayMap;
 import io.github.htools.collection.HashMapInt;
-import io.github.htools.collection.HashMapList;
 import io.github.htools.io.Datafile;
 import io.github.htools.io.FSPath;
 import io.github.htools.io.struct.XMLReader;
@@ -34,26 +33,27 @@ public class Reader {
         outfile.openWrite();
     }
 
+    
     public void read(Datafile df) throws XMLStreamException, IOException {
         XMLReader r = new XMLReader(df.getInputStream(), "document");
         while (r.hasNext()) {
             HashMap<String, Object> next = r.next();
             if (next != null) {
                 //log.info("%s", next);
-                w.id = getDocId((String) next.get("reference"));
-                HashMapInt<Integer> sources = new HashMapInt();
+                w.id = getDocId((String)next.get("reference"));
+                HashMapInt<String> sources = new HashMapInt();
                 for (Object feature : ((ArrayList) next.get("feature"))) {
                     HashMap<String, Object> featureMap = (HashMap) feature;
                     //log.info("%s", featureMap);
                     if (featureMap.get("name").equals("plagiarism")) {
-                        Integer sourceId = getDocId((String) featureMap.get("source_reference"));
+                        String sourceId = getDocId((String) featureMap.get("source_reference"));
                         Integer length = Integer.parseInt((String) featureMap.get("this_length"));
                         sources.add(sourceId, length);
                     }
                 }
-                ArrayMap<Integer, Integer> sorted = new ArrayMap();
+                ArrayMap<Integer, String> sorted = new ArrayMap();
                 CollectionTools.invert(sources, sorted);
-                for (Map.Entry<Integer, Integer> entry : sorted.descending()) {
+                for (Map.Entry<Integer, String> entry : sorted.descending()) {
                     w.source = entry.getValue();
                     w.indexSimilarity = entry.getKey();
                     w.measureSimilarity = entry.getKey();
@@ -67,8 +67,8 @@ public class Reader {
         outfile.closeWrite();
     }
 
-    public Integer getDocId(String filename) {
-        return Integer.parseInt(number.extract(filename));
+    public String getDocId(String filename) {
+        return number.extract(filename);
     }
 
     public static void main(String[] args) throws XMLStreamException, IOException {

@@ -12,7 +12,7 @@ import java.util.HashMap;
  */
 public class CandidateList extends TopK<Candidate> {
     public static Log log = new Log(CandidateList.class);
-    public HashMap<Integer, Candidate> candidateLookup = new HashMap();
+    public HashMap<String, Candidate> candidateLookup = new HashMap();
 
     public CandidateList(int k, Comparator<SimilarityWritable> comparator) {
         super(k, comparator);

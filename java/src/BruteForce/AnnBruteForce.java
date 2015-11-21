@@ -1,7 +1,6 @@
 package BruteForce;
 
 import SimilarityFile.SimilarityWritable;
-import SimilarityFunction.SimilarityFunction;
 import TestGeneric.AnnIndex;
 import TestGeneric.Candidate;
 import TestGeneric.CandidateList;
@@ -19,12 +18,12 @@ public class AnnBruteForce extends AnnIndex {
     public static Log log = new Log(AnnBruteForce.class);
     ArrayList<Document> sourceDocuments = new ArrayList();
     
-    public AnnBruteForce(SimilarityFunction similarityFunction, Comparator<SimilarityWritable> comparator) throws ClassNotFoundException {
-        super(similarityFunction, comparator);
+    public AnnBruteForce(Comparator<SimilarityWritable> comparator) throws ClassNotFoundException {
+        super(comparator);
     }
     
-    public AnnBruteForce(SimilarityFunction function, Comparator<SimilarityWritable> comparator, Configuration conf) throws ClassNotFoundException {
-        this(function, comparator);
+    public AnnBruteForce(Comparator<SimilarityWritable> comparator, Configuration conf) throws ClassNotFoundException {
+        this(comparator);
     }
     
     @Override
@@ -35,7 +34,7 @@ public class AnnBruteForce extends AnnIndex {
     @Override
     protected void getDocuments(CandidateList list, Object fingerprint, Document document) {
        for (Document sourceDocument : sourceDocuments) {
-           double similarity = similarityFunction.similarity(document, sourceDocument);
+           double similarity = document.similarity(sourceDocument);
            list.add(sourceDocument, similarity);
        }
     }

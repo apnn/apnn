@@ -1,24 +1,23 @@
 package TestGenericMR;
 
-import SimilarityFile.MeasureSimilarity;
+import SimilarityFile.IndexSimilarity;
 import SimilarityFile.SimilarityWritable;
 import SimilarityFunction.SimilarityFunction;
 import TestGeneric.AnnIndex;
 import TestGeneric.CandidateList;
 import TestGeneric.Candidate;
 import TestGeneric.Document;
-import TestGenericMR.StringPairInputFormat.Value;
+import TestGenericMR.SourceQueryPairInputFormat.Pair;
 import io.github.htools.hadoop.Conf;
 import io.github.htools.hadoop.ContextTools;
-import io.github.htools.io.compressed.ArchiveFile;
-import io.github.htools.io.compressed.ArchiveEntry;
+import io.github.htools.io.Datafile;
 import io.github.htools.lib.Log;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.Iterator;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
 
 /**
@@ -33,31 +32,31 @@ import org.apache.hadoop.mapreduce.Mapper;
  *
  * @author jeroen
  */
-public class TestGenericMap extends Mapper<Integer, Value, IntWritable, Candidate> {
+public class TestGenericMap extends Mapper<Integer, Pair, Text, Candidate> {
 
     public static final Log log = new Log(TestGenericMap.class);
     protected Conf conf;
+    protected DocumentReader documentreader;
     protected AnnIndex index;
-    protected SimilarityFunction similarityFunction;
     protected int topk;
 
-    protected IntWritable outKey = new IntWritable();
+    protected Text outKey = new Text();
 
     @Override
     public void setup(Context context) throws IOException {
         conf = ContextTools.getConfiguration(context);
-        similarityFunction = TestGenericJob.getSimilarityFunction(conf);
+        documentreader = getDocumentReader();
         topk = TestGenericJob.getTopK(conf);
-        Document.setTokenizer(conf);
-        index = TestGenericJob.getAnnIndex(getSimilarityFunction(), getComparator(), getConf());
+        index = TestGenericJob.getAnnIndex(getComparator(), getConf());
+        Document.setSimilarityFunction(getSimilarityFunction());
+    }
+    
+    public DocumentReader getDocumentReader() {
+        return new DocumentReaderTerms();
     }
 
     public SimilarityFunction getSimilarityFunction() {
-        return similarityFunction;
-    }
-    
-    public double similarity(Document a, Document b) {
-        return similarityFunction.similarity(a, b);
+        return TestGenericJob.getSimilarityFunction(conf);
     }
     
     public int getTopK() {
@@ -65,26 +64,30 @@ public class TestGenericMap extends Mapper<Integer, Value, IntWritable, Candidat
     }
 
     public Comparator<SimilarityWritable> getComparator() {
-        return MeasureSimilarity.singleton;
+        return IndexSimilarity.singleton;
     } 
     
     @Override
-    public void map(Integer key, Value value, Context context) throws IOException, InterruptedException {
+    public void map(Integer key, Pair value, Context context) throws IOException, InterruptedException {
         // read all source documents and add to AnnIndex
-        ArrayList<Document> sourceDocuments = readDocuments(conf, value.sourcefile, getSimilarityFunction());
+        Datafile sourceDatafile = new Datafile(conf, value.sourcefile);
+        ArrayList<Document> sourceDocuments = 
+                documentreader.readDocuments(sourceDatafile);
         for (Document sourceDocument : sourceDocuments) {
             index.add(sourceDocument);
         }
+        index.finishIndex();
 
         // iterate over all suspicious documents
-        for (Document suspiciousDocument : iterableDocuments(conf, value.suspiciousfile, getSimilarityFunction())) {
+        Datafile queryDF = new Datafile(conf, value.queryfile);
+        for (Document query : documentreader.iterableDocuments(queryDF)) {
             // retrieve the k most similar source documents from the index
-            CandidateList topKSourceDocuments = index.getNNs(suspiciousDocument, getTopK());
+            CandidateList topKSourceDocuments = index.getNNs(query, getTopK());
 
             // write the topk to the reducer
-            outKey.set(suspiciousDocument.getId());
+            outKey.set(query.getId());
             for (Candidate candidate : topKSourceDocuments) {
-                candidate.id = suspiciousDocument.docid;
+                candidate.id = query.docid;
                 
                 // send to reducer
                 context.write(outKey, candidate);
@@ -94,90 +97,14 @@ public class TestGenericMap extends Mapper<Integer, Value, IntWritable, Candidat
     
     @Override
     public void cleanup(Context context) {
-        TestGenericJob.addMeasuresCompared(context, similarityFunction.getComparisons());
+        TestGenericJob.addMeasuresCompared(context, Document.getSimilarityFunction().getComparisons());
         TestGenericJob.addGetDocumentsTime(context, AnnIndex.getGetDocumentsTime(), AnnIndex.getGetDocumentsCount());
         TestGenericJob.addGetDocCodepoints(context, index.countDocCodepoints);
         TestGenericJob.addGetDocComparedCodepoints(context, index.countComparedDocCodepoints);
         TestGenericJob.addFingerprintTime(context, AnnIndex.getGetFingerprintTime(), AnnIndex.getGetFingerprintCount());
-        TestGenericJob.addSimilarityFunction(context, similarityFunction.getComparisonsTime(), similarityFunction.getComparisons());
+        TestGenericJob.addSimilarityFunction(context, Document.getSimilarityFunction().getComparisonsTime(), 
+                Document.getSimilarityFunction().getComparisons());
         index.cleanup(context);
-    }
-
-    /**
-     * @param documentFilename
-     * @return an ArrayList of Documents read from an ArchiveFile on HDFS with
-     * the name documentFilename
-     * @throws IOException
-     */
-    public static ArrayList<Document> readDocuments(Configuration conf, 
-            String documentFilename, 
-            SimilarityFunction function) throws IOException {
-        
-        ArrayList<Document> documents = new ArrayList();
-        for (Document document : iterableDocuments(conf, documentFilename, function)) {
-            // extract the docid from the filename (in the tar-file)
-            // add to the map of documents
-            documents.add(document);
-        }
-        return documents;
-    }
-
-    /**
-     * An Iterable over the documents in an archiveFile on HDFS with the name
-     * documentFilename
-     *
-     * @param documentFilename
-     * @return
-     * @throws IOException
-     */
-    public static Iterable<Document> iterableDocuments(Configuration conf, String documentFilename, SimilarityFunction function) throws IOException {
-        ArchiveFile archiveFile = ArchiveFile.getReader(conf, documentFilename);
-        return new DocumentIterator(archiveFile, function);
-    }
-
-    public static Document readDocument(ArchiveEntry entry) throws IOException {
-        return Document.read(entry);
-    }
-    
-    static class DocumentIterator implements Iterable<Document>, Iterator<Document> {
-
-        Iterator<ArchiveEntry> iterator;
-        SimilarityFunction similarityFunction;
-
-        DocumentIterator(ArchiveFile file, SimilarityFunction function) {
-            iterator = file;
-            this.similarityFunction = function;
-        }
-
-        @Override
-        public Iterator<Document> iterator() {
-            return this;
-        }
-
-        @Override
-        public boolean hasNext() {
-            return iterator.hasNext();
-        }
-
-        @Override
-        public Document next() {
-            try {
-                ArchiveEntry next = iterator.next();
-                if (next != null) {
-                    Document document = readDocument(next);
-                    similarityFunction.reweight(document);
-                    return document;
-                }
-            } catch (IOException ex) {
-            }
-            return null;
-        }
-
-        @Override
-        public void remove() {
-            throw new UnsupportedOperationException("Not supported.");
-        }
-
     }
 
     public Configuration getConf() {

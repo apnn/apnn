@@ -1,7 +1,6 @@
 package Shingle;
 
 import SimilarityFile.SimilarityWritable;
-import SimilarityFunction.SimilarityFunction;
 import TestGeneric.AnnIndex;
 import TestGeneric.CandidateList;
 import TestGeneric.Document;
@@ -25,15 +24,15 @@ public class AnnShingle extends AnnIndex<FHashSetInt> {
     protected int shingleSize;
     protected FHashMapIntList<Document> mapShingles;
 
-    public AnnShingle(SimilarityFunction similarityFunction,
+    public AnnShingle(
             Comparator<SimilarityWritable> comparator,
             int shingleSize) throws ClassNotFoundException {
-        super(similarityFunction, comparator);
+        super(comparator);
         initialize(shingleSize);
     }
 
-    public AnnShingle(SimilarityFunction function, Comparator<SimilarityWritable> comparator, Configuration conf) throws ClassNotFoundException {
-        this(function, comparator, ShingleJob.getShingleSize(conf));
+    public AnnShingle(Comparator<SimilarityWritable> comparator, Configuration conf) throws ClassNotFoundException {
+        this(comparator, ShingleJob.getShingleSize(conf));
     }
 
     private void initialize(int shingleSize) {
@@ -52,7 +51,7 @@ public class AnnShingle extends AnnIndex<FHashSetInt> {
     @Override
     protected void getDocuments(CandidateList candidates, FHashSetInt shingleHashCodes, Document document) {
         HashMapInt<Document> docCount = new HashMapInt();
-        log.info("fp size %d %d", document.docid, shingleHashCodes.size());
+        log.info("fp size %s %d", document.docid, shingleHashCodes.size());
         this.countDocCodepoints += shingleHashCodes.size();
         for (int shingle : shingleHashCodes) {
             ObjectArrayList<Document> list = mapShingles.get(shingle);
@@ -70,7 +69,8 @@ public class AnnShingle extends AnnIndex<FHashSetInt> {
     @Override
     protected FHashSetInt getFingerprint(Document document) {
         FHashSetInt result = new FHashSetInt();
-        byte[] content = ByteTools.toFullTrimmed(document.getContent(), 0, document.getContent().length);
+        byte[] content = ByteTools.toFullTrimmed(document.getTokenizedContent(), 
+                0, document.getTokenizedContent().length);
         if (content.length < shingleSize) {
             int hashcode = MathTools.hashCode(content, 0, content.length);
             result.add(hashcode);

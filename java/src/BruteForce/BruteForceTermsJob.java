@@ -12,31 +12,30 @@ import io.github.htools.hadoop.Conf;
  * parameters:
  *
  * sourcepath: HDFS path containing the PAN11 source documents wrapped in
- * ArchiveFiles (e.g. .tar.lz4) 
- * suspiciouspath: HDFS path containing the PAN11
- * suspicious documents wrapped in ArchiveFiles (e.g. .tar.lz4)
- * output: the resulting k-most similar source documents per suspicious document
- * are written to a file with this name in SimilarityFile format
+ * ArchiveFiles (e.g. .tar.lz4) suspiciouspath: HDFS path containing the PAN11
+ * suspicious documents wrapped in ArchiveFiles (e.g. .tar.lz4) output: the
+ * resulting k-most similar source documents per suspicious document are written
+ * to a file with this name in SimilarityFile format
  *
  * @author Jeroen
  */
-public class BruteForceCosineJob {
-
-    private static final Log log = new Log(BruteForceCosineJob.class);
-
+public class BruteForceTermsJob {
+    
+    private static final Log log = new Log(BruteForceTermsJob.class);
+    
     public static void main(String[] args) throws Exception {
-
-        Conf conf = new Conf(args, "sourcepath suspiciouspath output");
+        
+        Conf conf = new Conf(args, "sourcepath suspiciouspath output vocabulary");
         conf.setTaskTimeout(1000000);
         
         TestGenericJob job = new TestGenericJob(conf,
                 conf.get("sourcepath"),
                 conf.get("suspiciouspath"),
-                conf.get("output"));
-        
+                conf.get("output"),
+                conf.get("vocabulary"));
+
         // configuration example (used as default):
         // job.setSimilarityFunction(CosineSimilarity.class);
-        
         job.waitForCompletion(true);
     }
 }

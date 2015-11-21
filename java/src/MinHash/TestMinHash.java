@@ -33,9 +33,9 @@ public class TestMinHash extends TestGeneric {
         super(vocabulary, MeasureSimilarity.singleton);
         setupOutput(resultFile);
         loadSourceDocuments(sourcePath);
-        streamSuspiciousDocuments(suspiciousPath);
+        streamQueryDocuments(suspiciousPath);
         closeOutput();
-        log.info("comparisons %d", index.getSimilarityFunction().getComparisons());
+        log.info("comparisons %d", Document.getSimilarityFunction().getComparisons());
     }
 
     @Override
@@ -45,9 +45,9 @@ public class TestMinHash extends TestGeneric {
 
     
    @Override
-    public AnnIndex getIndex(Datafile vocabulary, Comparator<SimilarityWritable> comparator) throws ClassNotFoundException {
+    public AnnIndex getIndex(Comparator<SimilarityWritable> comparator) throws ClassNotFoundException {
         // this implementation is fixed for now with hashFunctions=240 and bandwidth=2
-        return new AnnMinHash(new CosineSimilarityTFIDF(vocabulary), comparator, 100, 1);
+        return new AnnMinHash(comparator, 100, 1);
     }
     
     public static void main(String[] args) throws IOException, ClassNotFoundException {
@@ -57,10 +57,5 @@ public class TestMinHash extends TestGeneric {
         Datafile vocabulary = new Datafile(ap.get("vocabulary"));
         Datafile output = new Datafile(ap.get("output"));
         new TestMinHash(source, suspicious, vocabulary, output);
-    }
-
-    @Override
-    public AnnIndex getIndex(Comparator<SimilarityWritable> comparator) throws ClassNotFoundException {
-        throw new UnsupportedOperationException("Needs a vocabulary"); //To change body of generated methods, choose Tools | Templates.
     }
 }

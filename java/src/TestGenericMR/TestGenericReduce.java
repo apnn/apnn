@@ -1,5 +1,6 @@
 package TestGenericMR;
 
+import SimilarityFile.IndexSimilarity;
 import SimilarityFile.MeasureSimilarity;
 import SimilarityFile.SimilarityFile;
 import SimilarityFile.SimilarityWritable;
@@ -19,6 +20,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.NullWritable;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Reducer;
 
 /**
@@ -28,7 +30,7 @@ import org.apache.hadoop.mapreduce.Reducer;
  *
  * @author jeroen
  */
-public class TestGenericReduce extends Reducer<IntWritable, Candidate, NullWritable, NullWritable> {
+public class TestGenericReduce extends Reducer<Text, Candidate, NullWritable, NullWritable> {
 
     public static final Log log = new Log(TestGenericReduce.class);
     enum REDUCE {
@@ -67,7 +69,7 @@ public class TestGenericReduce extends Reducer<IntWritable, Candidate, NullWrita
     }
 
     @Override
-    public void reduce(IntWritable key, Iterable<Candidate> values, Context context) throws IOException, InterruptedException {
+    public void reduce(Text key, Iterable<Candidate> values, Context context) throws IOException, InterruptedException {
 
         // a map that automatically keeps only the items with the top-k highest keys
         TopK<Candidate> topk = new TopK(scanSize, comparator);
@@ -89,7 +91,7 @@ public class TestGenericReduce extends Reducer<IntWritable, Candidate, NullWrita
         // write the top-k most similar documents to file
         double abserror = 0;
         for (Candidate c : list) {
-            log.info("%d %d %f %f", c.id, c.source, c.indexSimilarity, c.measureSimilarity);
+            log.info("%s %s %f %f", c.id, c.source, c.indexSimilarity, c.measureSimilarity);
             writeSimilarity(c);
             abserror += Math.abs(c.indexSimilarity - c.measureSimilarity);
         }
@@ -102,19 +104,19 @@ public class TestGenericReduce extends Reducer<IntWritable, Candidate, NullWrita
     }
     
     public Comparator<SimilarityWritable> getComparator() {
-        return MeasureSimilarity.singleton;
+        return IndexSimilarity.singleton;
     }
     
-    public ArrayList<Candidate> finalizeList(ArrayList<Candidate> list, int k) {
+    public ArrayList<Candidate> finalizeList(ArrayList<Candidate> list, int resultSize) {
         ArrayList<Candidate> result = new ArrayList();
-        if (list.size() <= k) {
+        if (list.size() <= resultSize) {
             return list;
         } else {
-            double value = list.get(k - 1).measureSimilarity;
-            for (int i = 0; i < k ; i++) {
+            double value = list.get(resultSize - 1).indexSimilarity;
+            for (int i = 0; i < resultSize ; i++) {
                 result.add(list.get(i));
             }
-            for (int i = k; i < list.size() && list.get(i).measureSimilarity == value; i++) {
+            for (int i = resultSize; i < list.size() && list.get(i).indexSimilarity == value; i++) {
                 result.add(list.get(i));
             }
         }

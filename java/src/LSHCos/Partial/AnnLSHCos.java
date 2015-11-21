@@ -1,7 +1,6 @@
 package LSHCos.Partial;
 
 import SimilarityFile.SimilarityWritable;
-import SimilarityFunction.SimilarityFunction;
 import TestGeneric.Candidate;
 import TestGeneric.CandidateList;
 import TestGeneric.Document;
@@ -24,7 +23,6 @@ public class AnnLSHCos {
 
     public static Log log = new Log(AnnLSHCos.class);
     RandomTools.RandomGenerator random = RandomTools.createGenerator(0);
-    SimilarityFunction similarityFunction;
     protected Comparator<SimilarityWritable> comparator;
     protected int numHyperplanes = 100;
     protected int fingerprintSize = numHyperplanes / 64;
@@ -33,8 +31,7 @@ public class AnnLSHCos {
     ArrayMap<Document, long[]> index = new ArrayMap();
     ArrayMap<Document, long[]> queries = new ArrayMap();
 
-    public AnnLSHCos(SimilarityFunction function, Comparator<SimilarityWritable> comparator, Configuration conf) throws ClassNotFoundException {
-        similarityFunction = function;
+    public AnnLSHCos(Comparator<SimilarityWritable> comparator, Configuration conf) throws ClassNotFoundException {
         this.comparator = comparator;
         this.numHyperplanes = LSHCosJob.getNumHyperplanes(conf);
         fingerprintSize = 1 + (numHyperplanes - 1) / 64;
@@ -58,10 +55,10 @@ public class AnnLSHCos {
     private void setVocabulary() {
         vocabulary = new HashSet(10000);
         for (Document d : index.keySet()) {
-            vocabulary.addAll(d.getTerms());
+            vocabulary.addAll(d.getModel().keySet());
         }
         for (Document d : queries.keySet())
-            vocabulary.addAll(d.getTerms());
+            vocabulary.addAll(d.getModel().keySet());
     }
     
     public void set(ArrayList<Document> source, ArrayList<Document> queries) {
@@ -119,7 +116,7 @@ public class AnnLSHCos {
             candidates.add(entry.getKey(), similarity);
         }
         for (Candidate c : candidates) {
-            c.measureSimilarity = similarityFunction.similarity(document, c.document);
+            c.measureSimilarity = document.similarity(c.document);
         }
     }
 

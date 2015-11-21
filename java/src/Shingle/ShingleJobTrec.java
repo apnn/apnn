@@ -1,8 +1,10 @@
-package LSHCos;
+package Shingle;
 
-import TestGenericMR.TestGenericJobIE;
+import TestGeneric.Tokenizer;
+import TestGenericMR.TestGenericJob;
 import io.github.htools.lib.Log;
 import io.github.htools.hadoop.Conf;
+import io.github.htools.hadoop.InputFormat;
 import org.apache.hadoop.conf.Configuration;
 
 /**
@@ -22,27 +24,26 @@ import org.apache.hadoop.conf.Configuration;
  *
  * @author Jeroen
  */
-public class LSHCosJob {
+public class ShingleJobTrec {
 
-    private static final Log log = new Log(LSHCosJob.class);
-    public static final String NUMHYPERPLANES = "numhyperplanes";
+    private static final Log log = new Log(ShingleJobTrec.class);
+    public static final String SHINGLESIZE = "shinglesize";
 
     public static void main(String[] args) throws Exception {
 
-        Conf conf = new Conf(args, "sourcepath suspiciouspath output");
-        conf.setTaskTimeout(30000000);
-        conf.setMapMemoryMB(4096);
+        Conf conf = new Conf(args, "sourcepath suspiciouspath output -v vocabulary");
 
-        TestGenericJobIE job = new TestGenericJobIE(conf,
+        InputFormat.setSplitSize(conf, 50000000);
+        TestGenericJob.setAnnIndex(conf, AnnShingle.class);
+        
+        TestGenericJob job = new TestGenericJob(conf,
                 conf.get("sourcepath"),
                 conf.get("suspiciouspath"),
-                conf.get("output")
+                conf.get("output"),
+                conf.get("vocabulary")
         );
-
-        job.setAnnIndex(AnnLSHCos.class);
         
-        // don't remove stopwords when creating shingles
-        //job.setTokenizer(Tokenizer.class);
+        job.useDocumentContentTrec();
 
         job.waitForCompletion(true);
     }
@@ -53,7 +54,7 @@ public class LSHCosJob {
      * (default=9)
      * @throws ClassNotFoundException
      */
-    public static int getNumHyperplanes(Configuration conf) {
-        return conf.getInt(NUMHYPERPLANES, 100);
+    public static int getShingleSize(Configuration conf) {
+        return conf.getInt(SHINGLESIZE, 9);
     }
 }

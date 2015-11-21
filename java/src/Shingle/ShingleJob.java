@@ -1,16 +1,9 @@
 package Shingle;
 
-import TestGeneric.Tokenizer;
 import TestGenericMR.TestGenericJob;
-import TestGenericMR.TestGenericJobIE;
-import TestGenericMR.TestGenericMapIE;
-import TestGenericMR.TestGenericReduceIE;
 import io.github.htools.lib.Log;
 import io.github.htools.hadoop.Conf;
-import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.mapreduce.Job;
 
 /**
  * Basis for this method is to create 4-byte hashCodes of all s-character
@@ -36,18 +29,17 @@ public class ShingleJob {
 
     public static void main(String[] args) throws Exception {
 
-        Conf conf = new Conf(args, "sourcepath suspiciouspath output");
+        Conf conf = new Conf(args, "sourcepath suspiciouspath output -v vocabulary -s shinglesize");
+        TestGenericJob.setAnnIndex(conf, AnnShingle.class);
 
-        TestGenericJobIE job = new TestGenericJobIE(conf,
+        TestGenericJob job = new TestGenericJob(conf,
                 conf.get("sourcepath"),
                 conf.get("suspiciouspath"),
-                conf.get("output")
+                conf.get("output"),
+                conf.get("vocabulary")
         );
-
-        job.setAnnIndex(AnnShingle.class);
-
-        // don't remove stopwords when creating shingles
-        job.setTokenizer(Tokenizer.class);
+        
+        job.useDocumentContent();
 
         job.waitForCompletion(true);
     }

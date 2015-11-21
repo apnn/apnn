@@ -2,15 +2,11 @@ package ShingleT3;
 
 import Shingle.AnnShingle;
 import SimilarityFile.SimilarityWritable;
-import SimilarityFunction.SimilarityFunction;
-import TestGeneric.AnnIndex;
-import TestGeneric.CandidateList;
 import TestGeneric.Document;
 import io.github.htools.fcollection.FHashMapIntList;
 import io.github.htools.fcollection.FHashSetInt;
 import io.github.htools.lib.Log;
 import io.github.htools.lib.MathTools;
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.ArrayList;
 import java.util.Comparator;
 import org.apache.hadoop.conf.Configuration;
@@ -24,14 +20,14 @@ public class ShingleT3 extends AnnShingle {
     int shingleSize = 3;
     FHashMapIntList<Document> shinglesHashCodes;
 
-    public ShingleT3(SimilarityFunction similarityFunction,
+    public ShingleT3(
                       Comparator<SimilarityWritable> comparator,
                       int shingleSize) throws ClassNotFoundException {
-        super(similarityFunction, comparator, shingleSize);
+        super(comparator, shingleSize);
     }
 
-    public ShingleT3(SimilarityFunction function, Comparator<SimilarityWritable> comparator,Configuration conf) throws ClassNotFoundException {
-        super(function, comparator, conf);
+    public ShingleT3(Comparator<SimilarityWritable> comparator,Configuration conf) throws ClassNotFoundException {
+        super(comparator, conf);
         shingleSize = conf.getInt("shinglesize", 3);
     }
 

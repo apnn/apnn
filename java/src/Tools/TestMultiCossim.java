@@ -30,7 +30,7 @@ public class TestMultiCossim {
             Datafile file = files.remove(0);
             ArchiveFile sourceFile = ArchiveFile.getReader(file);
             for (ArchiveEntry entry : (Iterable<ArchiveEntry>) sourceFile) {
-                Document document = Document.read(entry);
+                Document document = Document.readContent(entry.getName(), entry.readAll());
                 retVal.add(document);
             }
         }

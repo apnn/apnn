@@ -6,6 +6,7 @@ import io.github.htools.hadoop.Conf;
 import io.github.htools.hadoop.Job;
 import java.io.IOException;
 import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.lib.output.NullOutputFormat;
 
 /**
@@ -25,7 +26,7 @@ public class AnalyzeJob {
         Job job = new Job(conf);
         TestGenericJob.setupInputFormat(job, conf.get("input"), conf.get("output"));
         job.setMapperClass(AnalyzeMap.class);
-        job.setMapOutputKeyClass(IntWritable.class);
+        job.setMapOutputKeyClass(Text.class);
         job.setMapOutputValueClass(Result.class);
         job.setNumReduceTasks(1);
         job.setReducerClass(AnalyzeReduce.class);

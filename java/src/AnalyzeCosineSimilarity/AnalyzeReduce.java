@@ -12,7 +12,7 @@ import org.apache.hadoop.mapreduce.Reducer;
 /**
  * @author jeroen
  */
-public class AnalyzeReduce extends Reducer<IntWritable, Result, NullWritable, NullWritable> {
+public class AnalyzeReduce extends Reducer<Text, Result, NullWritable, NullWritable> {
 
     public static final Log log = new Log(AnalyzeReduce.class);
     ArrayList<Double> simpos[] = new ArrayList[5];
@@ -26,7 +26,7 @@ public class AnalyzeReduce extends Reducer<IntWritable, Result, NullWritable, Nu
     }
 
     @Override
-    public void reduce(IntWritable key, Iterable<Result> values, Context context) throws IOException, InterruptedException {
+    public void reduce(Text key, Iterable<Result> values, Context context) throws IOException, InterruptedException {
         Result top = null;
         for (Result t : values) {
             if (top == null || top.similarity < t.similarity) {

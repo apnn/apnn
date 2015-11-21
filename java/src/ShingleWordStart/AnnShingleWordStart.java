@@ -2,7 +2,6 @@ package ShingleWordStart;
 
 import Shingle.*;
 import SimilarityFile.SimilarityWritable;
-import SimilarityFunction.SimilarityFunction;
 import TestGeneric.Document;
 import io.github.htools.fcollection.FHashSetInt;
 import io.github.htools.lib.ByteTools;
@@ -18,14 +17,14 @@ public class AnnShingleWordStart extends AnnShingle {
 
     public static Log log = new Log(AnnShingleWordStart.class);
     
-    public AnnShingleWordStart(SimilarityFunction similarityFunction,
+    public AnnShingleWordStart(
                       Comparator<SimilarityWritable> comparator,
                       int shingleSize) throws ClassNotFoundException {
-        super(similarityFunction, comparator, shingleSize);
+        super(comparator, shingleSize);
     }
 
-    public AnnShingleWordStart(SimilarityFunction function, Comparator<SimilarityWritable> comparator,Configuration conf) throws ClassNotFoundException {
-        super(function, comparator, conf);
+    public AnnShingleWordStart(Comparator<SimilarityWritable> comparator,Configuration conf) throws ClassNotFoundException {
+        super(comparator, conf);
     }
     
     @Override

@@ -39,7 +39,7 @@ public class VocabularyWritable extends Writable<VocabularyFile> {
     }
 
     @Override
-    public void write(VocabularyFile file) throws IOException {
+    public void write(VocabularyFile file) {
         file.term.set(term);
         file.documentFrequency.set(documentFrequency);
         file.termFrequency.set(termFrequency);

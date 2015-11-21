@@ -1,13 +1,9 @@
 package ShingleT3;
 
-import Shingle.ShingleJob;
 import TestGeneric.Tokenizer;
-import TestGenericMR.TestGenericJobIE;
+import TestGenericMR.TestGenericJob;
 import io.github.htools.lib.Log;
 import io.github.htools.hadoop.Conf;
-import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import org.apache.hadoop.conf.Configuration;
 
 /**
  * Basis for this method is to create 4-byte hashCodes of all s-term Shingles
@@ -32,18 +28,15 @@ public class ShingleT3Job {
     
     public static void main(String[] args) throws Exception {
 
-        Conf conf = new Conf(args, "sourcepath suspiciouspath output");
+        Conf conf = new Conf(args, "sourcepath suspiciouspath output -v vocabulary");
+        TestGenericJob.setAnnIndex(conf, ShingleT3.class);
 
-        TestGenericJobIE job = new TestGenericJobIE(conf,
+        TestGenericJob job = new TestGenericJob(conf,
                 conf.get("sourcepath"),
                 conf.get("suspiciouspath"),
-                conf.get("output")
+                conf.get("output"),
+                conf.get("vocabulary")
         );
-        
-        job.setAnnIndex(ShingleT3.class);
-        
-        // use a tokenizer that does not remove stopwords
-        job.setTokenizer(Tokenizer.class);
         
         job.waitForCompletion(true);
     } 

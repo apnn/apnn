@@ -5,8 +5,9 @@ import TestGeneric.AnnIndex;
 import TestGeneric.CandidateList;
 import TestGeneric.Candidate;
 import TestGeneric.Document;
-import TestGenericMR.StringPairInputFormat.Value;
+import TestGenericMR.SourceQueryPairInputFormat.Pair;
 import io.github.htools.hadoop.ContextTools;
+import io.github.htools.io.Datafile;
 import io.github.htools.lib.Log;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -32,21 +33,26 @@ public class LSHCosMap extends TestGenericMap {
     @Override
     public void setup(Context context) throws IOException {
         conf = ContextTools.getConfiguration(context);
-        similarityFunction = TestGenericJob.getSimilarityFunction(conf);
+        documentreader = new DocumentReaderTFIDF();
+        Document.setSimilarityFunction(getSimilarityFunction());
         topk = TestGenericJob.getTopK(conf);
-        Document.setTokenizer(conf);
         try {
-            index = new AnnLSHCos(getSimilarityFunction(), getComparator(), conf);
+            index = new AnnLSHCos(getComparator(), conf);
         } catch (ClassNotFoundException ex) {
             log.fatalexception(ex, "setup");
         }
     }    
     
     @Override
-    public void map(Integer key, Value value, Context context) throws IOException, InterruptedException {
+    public void map(Integer key, Pair value, Context context) throws IOException, InterruptedException {
         // read all source documents and add to AnnIndex
-        ArrayList<Document> sourceDocuments = readDocuments(conf, value.sourcefile, getSimilarityFunction());
-        ArrayList<Document> suspiciousDocuments = readDocuments(conf, value.suspiciousfile, getSimilarityFunction());
+        Datafile sourceDatafile = new Datafile(conf, value.sourcefile);
+        ArrayList<Document> sourceDocuments = 
+                documentreader.readDocuments(sourceDatafile);
+        
+        Datafile suspDatafile = new Datafile(conf, value.queryfile);
+        ArrayList<Document> suspiciousDocuments = 
+                documentreader.readDocuments(suspDatafile);
         index.set(sourceDocuments, suspiciousDocuments);
         
         // iterate over all suspicious documents
@@ -69,9 +75,10 @@ public class LSHCosMap extends TestGenericMap {
     
     @Override
     public void cleanup(Context context) {
-        TestGenericJob.addMeasuresCompared(context, similarityFunction.getComparisons());
+        TestGenericJob.addMeasuresCompared(context, Document.getSimilarityFunction().getComparisons());
         TestGenericJob.addGetDocumentsTime(context, AnnIndex.getGetDocumentsTime(), AnnIndex.getGetDocumentsCount());
         TestGenericJob.addFingerprintTime(context, AnnIndex.getGetFingerprintTime(), AnnIndex.getGetFingerprintCount());
-        TestGenericJob.addSimilarityFunction(context, similarityFunction.getComparisonsTime(), similarityFunction.getComparisons());
+        TestGenericJob.addSimilarityFunction(context, Document.getSimilarityFunction().getComparisonsTime(), 
+                Document.getSimilarityFunction().getComparisons());
     }
 }

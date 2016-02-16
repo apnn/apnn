@@ -16,7 +16,7 @@ import java.util.Comparator;
 public class SimilarityWritable extends Writable<SimilarityFile> {
 
     // id of a suspicious document
-    public String id;
+    public String query;
     // the similarity of the source document to the suspicious document
     public double measureSimilarity;
     // id of the source document
@@ -28,7 +28,7 @@ public class SimilarityWritable extends Writable<SimilarityFile> {
 
     public SimilarityWritable clone() {
         SimilarityWritable s = new SimilarityWritable();
-        s.id = id;
+        s.query = query;
         s.source = source;
         s.measureSimilarity = measureSimilarity;
         s.indexSimilarity = indexSimilarity;
@@ -37,21 +37,21 @@ public class SimilarityWritable extends Writable<SimilarityFile> {
 
     @Override
     public int hashCode() {
-        return MathTools.hashCode(id.hashCode(), source.hashCode());
+        return MathTools.hashCode(query.hashCode(), source.hashCode());
     }
 
     @Override
     public boolean equals(Object o) {
         if (o instanceof SimilarityWritable) {
             SimilarityWritable oo = (SimilarityWritable) o;
-            return oo.id.equals(id) && oo.source.equals(source);
+            return oo.query.equals(query) && oo.source.equals(source);
         }
         return false;
     }
 
     @Override
     public void read(SimilarityFile f) {
-        this.id = f.id.get();
+        this.query = f.id.get();
         this.source = f.source.get();
         this.measureSimilarity = f.similarity.get();
         this.indexSimilarity = f.indexsimilarity.get();
@@ -59,7 +59,7 @@ public class SimilarityWritable extends Writable<SimilarityFile> {
 
     @Override
     public void write(BufferDelayedWriter writer) {
-        writer.write(id);
+        writer.write(query);
         writer.write(source);
         writer.write(measureSimilarity);
         writer.write(indexSimilarity);
@@ -67,7 +67,7 @@ public class SimilarityWritable extends Writable<SimilarityFile> {
 
     @Override
     public void readFields(BufferReaderWriter reader) {
-        id = reader.readString();
+        query = reader.readString();
         source = reader.readString();
         measureSimilarity = reader.readDouble();
         indexSimilarity = reader.readDouble();
@@ -75,7 +75,7 @@ public class SimilarityWritable extends Writable<SimilarityFile> {
 
     @Override
     public void write(SimilarityFile file) {
-        file.id.set(id);
+        file.id.set(query);
         file.source.set(source);
         file.similarity.set(measureSimilarity);
         file.indexsimilarity.set(indexSimilarity);

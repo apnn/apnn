@@ -2,27 +2,28 @@ package AnalyzeCosineSimilarity;
 
 import io.github.htools.lib.DoubleTools;
 import io.github.htools.lib.Log;
-import java.io.IOException;
-import java.util.ArrayList;
-import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Reducer;
 
+import java.io.IOException;
+import java.util.ArrayList;
+
 /**
+ * Lazy implementation, the result is just viewable in the Job's log.
  * @author jeroen
  */
 public class AnalyzeReduce extends Reducer<Text, Result, NullWritable, NullWritable> {
 
     public static final Log log = new Log(AnalyzeReduce.class);
-    ArrayList<Double> simpos[] = new ArrayList[5];
-    ArrayList<Double> sim;
+    ArrayList<Double> contribution[] = new ArrayList[5];
+    ArrayList<Double> similarityNN;
 
     @Override
     public void setup(Context context) {
-       sim = new ArrayList();
-       for (int i = 0; i < simpos.length; i++)
-           simpos[i] = new ArrayList();
+       similarityNN = new ArrayList();
+       for (int i = 0; i < contribution.length; i++)
+           contribution[i] = new ArrayList();
     }
 
     @Override
@@ -34,18 +35,18 @@ public class AnalyzeReduce extends Reducer<Text, Result, NullWritable, NullWrita
             }
         }
         top.map.descending();
-        log.printf("%s", top.toString());
-        for (int i = 0; i < simpos.length && i < top.map.size(); i++) {
-            simpos[i].add( top.map.getKey(i) / top.magnitude );
+        //log.printf("%s", top.toString());
+        for (int i = 0; i < contribution.length && i < top.map.size(); i++) {
+            contribution[i].add( top.map.getKey(i) / top.magnitude );
         }
-        sim.add(top.similarity);
+        similarityNN.add(top.similarity);
     }
 
     @Override
     public void cleanup(Context context) {
-        for (int i = 0; i < simpos.length; i++) {
-            log.info("%d %f", i, DoubleTools.mean(simpos[i]));
-            log.info("%f", DoubleTools.mean(sim));
+        for (int i = 0; i < contribution.length; i++) {
+            log.info("rank %d contribution %f", i, DoubleTools.mean(contribution[i]));
+            log.info("average similarity to NN %f", DoubleTools.mean(similarityNN));
         }
     }
 }

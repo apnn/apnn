@@ -1,8 +1,8 @@
 package Eval;
 
 import Eval.Metric.Document;
-import Eval.Metric.ResultSet;
-import Eval.Metric.SuspiciousDocument;
+import Eval.Metric.GTMap;
+import Eval.Metric.GTQuery;
 import static Eval.Metric.loadFile;
 import io.github.htools.collection.ArrayMap;
 import io.github.htools.collection.HashMapMap;
@@ -24,11 +24,11 @@ import java.util.Map;
  */
 public class CrossValidate {
     public static Log log = new Log(CrossValidate.class);
-    Metric metric;
+    MetricAtK metric;
     int k;
     HashMap<String, HashMap<Document, Double>> parameterResults = new HashMap();
     
-    public CrossValidate(Metric metric, int k) {
+    public CrossValidate(MetricAtK metric, int k) {
         this.metric = metric;
         this.k = k;
     }
@@ -40,7 +40,7 @@ public class CrossValidate {
      * given parameterSetting
      */
     public void addParameterResults(String parameterSetting, Datafile resultsFile) {
-        Metric.ResultSet retrievedDocuments = Metric.loadFile(resultsFile);
+        MetricAtK.ResultSet retrievedDocuments = MetricAtK.loadResults(resultsFile);
         HashMap<Document, Double> scores = metric.score(retrievedDocuments, k);
         parameterResults.put(parameterSetting, scores);
     }
@@ -55,7 +55,7 @@ public class CrossValidate {
      * @return 
      */
     public double crossValidate(int n) {
-        FHashSet<SuspiciousDocument>[] folds = createFolds(n);
+        FHashSet<GTQuery>[] folds = createFolds(n);
         ArrayList<Double> scores = new ArrayList();
         for (int i = 0; i < n; i++) {
             ArrayMap<Double, String> trainedScores = getTrainedScores(folds[i]);
@@ -74,7 +74,7 @@ public class CrossValidate {
      * @return An ArrayMap of the average score per parameter over all documents
      * outside the testSet (i.e. the training set)
      */
-    public ArrayMap<Double, String> getTrainedScores(FHashSet<SuspiciousDocument> testSet) {
+    public ArrayMap<Double, String> getTrainedScores(FHashSet<GTQuery> testSet) {
         ArrayMap<Double, String> trainedScorePerParameter = new ArrayMap();
         for (Map.Entry<String, HashMap<Document, Double>> parameterResult : parameterResults.entrySet()) {
             String parameter = parameterResult.getKey();
@@ -98,7 +98,7 @@ public class CrossValidate {
      * @return A Map with per parameter a Map of the score per suspicousDocumentId
      * of all the subset of documents.
      */
-    public HashMapMap<String, Document, Double> getTestScoreMap(FHashSet<SuspiciousDocument> testSet) {
+    public HashMapMap<String, Document, Double> getTestScoreMap(FHashSet<GTQuery> testSet) {
         HashMapMap<String, Document, Double> testScorePerParameter = new HashMapMap();
         for (Map.Entry<String, HashMap<Document, Double>> parameterResult : parameterResults.entrySet()) {
             String parameter = parameterResult.getKey();
@@ -124,12 +124,12 @@ public class CrossValidate {
      * @param n number of folds
      * @return a split of the ground truth documents into n-folds.
      */
-    public FHashSet<SuspiciousDocument>[] createFolds(int n) {
-        FHashSet<SuspiciousDocument>[] folds = new FHashSet[n];
+    public FHashSet<GTQuery>[] createFolds(int n) {
+        FHashSet<GTQuery>[] folds = new FHashSet[n];
         for (int i = 0; i < n; i++)
             folds[i] = new FHashSet();
-        for (SuspiciousDocument suspiciousDocument : metric.getGroundTruth().values()) {
-            int fold = suspiciousDocument.docid.hashCode() % n;
+        for (GTQuery suspiciousDocument : metric.getGroundTruth().values()) {
+            int fold = suspiciousDocument.queryid.hashCode() % n;
             folds[fold].add(suspiciousDocument);
         }
         return folds;
@@ -138,7 +138,7 @@ public class CrossValidate {
     public static void main(String[] args) throws IOException {
         Conf conf = new Conf(args, "groundtruth rank -r {results} -f [folds]");
         Datafile gtFile = conf.getHDFSFile("groundtruth");
-        ResultSet gt = loadFile(gtFile);
+        GTMap gt = loadFile(gtFile);
         int rank = conf.getInt("rank", 100);
         int folds = conf.getInt("folds", 10);
         NDCG ndcg = new NDCG(gt);

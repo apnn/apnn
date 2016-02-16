@@ -1,12 +1,10 @@
 package SimilarityFunction;
 
 import TestGeneric.Document;
-import Vocabulary.Idf;
 import io.github.htools.io.Datafile;
 import io.github.htools.lib.Log;
 import io.github.htools.lib.Profiler;
 import io.github.htools.type.TermVectorDouble;
-import io.github.htools.type.TermVectorInt;
 
 /**
  *
@@ -22,9 +20,7 @@ public class CosineSimilarityTFIDF extends SimilarityFunction {
     
     @Override
     public double similarity(Document a, Document b) {
-        profiler.startTime();
         double cossim = a.getModel().cossim(b.getModel());
-        profiler.addAvgTime();
         if (Double.isNaN(cossim) || cossim > 1.000001) {
             if (a.getModel() instanceof TermVectorDouble)
                 ((TermVectorDouble)a.getModel()).cossimDebug((TermVectorDouble)b.getModel());

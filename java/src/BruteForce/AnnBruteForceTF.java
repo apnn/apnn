@@ -45,7 +45,7 @@ public class AnnBruteForceTF extends AnnIndex<TermVectorInt> {
     }
     
     @Override
-    protected TermVectorInt getFingerprint(Document document) {
-        return new TermVectorInt(document.getTermsNoStopwords());
+    protected TermVectorInt getFingerprintSource(Document document) {
+        return new TermVectorInt(document.getTerms());
     }
 }

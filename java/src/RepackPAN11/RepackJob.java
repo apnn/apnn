@@ -1,18 +1,24 @@
 package RepackPAN11;
 
-import io.github.htools.lib.Log;
 import io.github.htools.hadoop.Conf;
 import io.github.htools.hadoop.Job;
 import io.github.htools.hadoop.io.StringInputFormat;
 import io.github.htools.io.HDFSPath;
-import java.io.IOException;
-import java.util.ArrayList;
+import io.github.htools.lib.Log;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.lib.output.NullOutputFormat;
 
+import java.io.IOException;
+import java.util.ArrayList;
+
 /**
- * Extract the document frequency of terms from a Wikipedia XML source file
+ * Repacks the PAN11 documents by removing non-text content
+ * and repacking the files in tar.lz4 files. The resulting files will contain the
+ * actual text, including stopwords, no reading marks.
  *
+ * parameters:
+ * input: folder containing the original collection in tar.lz4 format
+ * output: folder that will contain the repacked files.
  * @author jeroen
  */
 public class RepackJob {
@@ -40,6 +46,9 @@ public class RepackJob {
         job.waitForCompletion(true);
     }
 
+    /**
+     * add all files in the given paths as input.
+     */
     static void setupInput(Job job, String input) throws IOException {
         job.setInputFormatClass(StringInputFormat.class);
         ArrayList<String> sourceFiles = new ArrayList();

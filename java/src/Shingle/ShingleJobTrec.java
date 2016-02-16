@@ -1,7 +1,8 @@
 package Shingle;
 
-import TestGeneric.Tokenizer;
+import TestGeneric.ContentExtractor;
 import TestGenericMR.TestGenericJob;
+import TestGenericRobust.TestGenericFDMJob;
 import io.github.htools.lib.Log;
 import io.github.htools.hadoop.Conf;
 import io.github.htools.hadoop.InputFormat;
@@ -31,20 +32,19 @@ public class ShingleJobTrec {
 
     public static void main(String[] args) throws Exception {
 
-        Conf conf = new Conf(args, "sourcepath suspiciouspath output -v vocabulary");
+        Conf conf = new Conf(args, "sourcepath suspiciouspath output vocabulary fdmscores");
 
         InputFormat.setSplitSize(conf, 50000000);
         TestGenericJob.setAnnIndex(conf, AnnShingle.class);
         
-        TestGenericJob job = new TestGenericJob(conf,
+        TestGenericFDMJob job = new TestGenericFDMJob(conf,
                 conf.get("sourcepath"),
                 conf.get("suspiciouspath"),
                 conf.get("output"),
-                conf.get("vocabulary")
+                conf.get("vocabulary"),
+                conf.get("fdmscores")
         );
         
-        job.useDocumentContentTrec();
-
         job.waitForCompletion(true);
     }
 

@@ -12,7 +12,7 @@ import java.util.ArrayList;
 public interface DocumentReader {
     
     /**
-     * @param documentFilename
+     * @param file
      * @return an ArrayList of Documents read from an ArchiveFile on HDFS with
      * the name documentFilename
      * @throws IOException
@@ -24,7 +24,6 @@ public interface DocumentReader {
      * documentFilename
      *
      * @param file
-     * @param documentFilename
      * @return
      * @throws IOException
      */

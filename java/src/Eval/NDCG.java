@@ -16,16 +16,16 @@ import java.util.HashMap;
  *
  * @author Jeroen
  */
-public class NDCG extends Metric {
+public class NDCG extends MetricAtK {
 
     public static Log log = new Log(NDCG.class);
 
-    public NDCG(ResultSet groundtruth) {
+    public NDCG(GTMap groundtruth) {
         super(groundtruth);
     }
 
     @Override
-    public double score(SuspiciousDocument groundtruth, SuspiciousDocument retrievedDocument, int k) {
+    public double score(GTQuery groundtruth, ResultQuery retrievedDocument, int k) {
         return dcg(groundtruth, retrievedDocument, k) / dcg(groundtruth, groundtruth, k);
     }
 
@@ -35,18 +35,17 @@ public class NDCG extends Metric {
      * @return the Discounted Cumulative Gain for the retrieved NNs vs the
      * optimal NNs (ground truth) for the given suspicious document.
      */
-    private double dcg(SuspiciousDocument optimalResult, SuspiciousDocument retrievedResult, int k) {
+    private double dcg(GTQuery optimalResult, ResultQuery retrievedResult, int k) {
         double dcg = 0;
-        for (SourceDocument document : retrievedResult.relevantDocuments.values()) {
+        for (int position = 0; position < k && position < retrievedResult.size(); position++) {
+            SourceDocument document = retrievedResult.retrievedDocuments.get(position);
             // positions count from 0
-            if (document.position <= k) {
-                SourceDocument gt = optimalResult.relevantDocuments.get(document.docid);
-                if (gt != null) {
-                    if (document.position == 1) {
-                        dcg += relevanceGrade(document.position, k);
-                    } else {
-                        dcg += relevanceGrade(document.position, k) / MathTools.log2(document.position);
-                    }
+            SourceDocument gt = optimalResult.relevantDocuments.get(document.queryid);
+            if (gt != null) {
+                if (document.position == 1) {
+                    dcg += relevanceGrade(document.position, k);
+                } else {
+                    dcg += relevanceGrade(document.position, k) / MathTools.log2(document.position);
                 }
             }
         }

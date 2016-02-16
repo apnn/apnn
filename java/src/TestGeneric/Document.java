@@ -2,14 +2,15 @@ package TestGeneric;
 
 import SimilarityFunction.SimilarityFunction;
 import io.github.htools.collection.ArrayMap;
+import io.github.htools.lib.ArrayTools;
 import io.github.htools.lib.ByteTools;
 import io.github.htools.lib.Log;
 import io.github.htools.lib.MathTools;
 import io.github.htools.search.ByteSearch;
 import io.github.htools.search.ByteSearchSection;
-import io.github.htools.type.TermVector;
 import io.github.htools.type.TermVectorDouble;
 import io.github.htools.type.TermVectorEntropy;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Map;
@@ -33,19 +34,35 @@ import java.util.Map;
 public class Document {
 
     public static Log log = new Log(Document.class);
-    private static Tokenizer tokenizer;
-    public static ByteSearch wordsplitter = ByteSearch.create("\\S+");
+    protected static ContentExtractor extractor;
     private static SimilarityFunction similarityFunction;
     static boolean stopwordsRemoved;
 
     public String docid;
     private ArrayList<String> terms;
-    private TermVector model;
+    private TermVectorDouble model;
+    private TermVectorEntropy emodel;
     private byte[] content;
+    private byte[] originalcontent;
 
     public Document(String docid, byte[] content) throws IOException {
         this.docid = docid;
         this.content = content;
+    }
+
+    public Document(String docid, byte[] originalcontent, byte[] content) throws IOException {
+        //log.info("new Document %s %s", docid, originalcontent);
+        this.docid = docid;
+        this.originalcontent = originalcontent;
+        this.content = content;
+    }
+
+    public Document(Document doc) {
+        this.docid = doc.docid;
+        this.content = doc.content;
+        this.originalcontent = doc.originalcontent;
+        this.terms = doc.terms;
+        this.model = doc.model;
     }
 
     public Document(String docid, Map<String, Double> tfidf) throws IOException {
@@ -56,23 +73,10 @@ public class Document {
         this.model = new TermVectorDouble(tfidf);
     }
 
-    public Document(String docid, byte[] content, ArrayList<String> terms) throws IOException {
-        this.docid = docid;
-        setTerms(terms);
-        // toBytes() strips the \0 bytes that were used to erase non-content.
-        this.content = ByteTools.toBytes(content, 0, content.length);
+    public static void setContentExtractor(ContentExtractor tokenizer) {
+        Document.extractor = tokenizer;
     }
 
-    public static Tokenizer getTokenizer() {
-        if (tokenizer == null)
-            tokenizer = new Tokenizer();
-        return tokenizer;
-    }
-    
-    public static void setTokenizer(Tokenizer tokenizer) {
-        Document.tokenizer = tokenizer;
-    }
-    
     public static void setSimilarityFunction(SimilarityFunction function) {
         similarityFunction = function;
     }
@@ -81,17 +85,17 @@ public class Document {
         return similarityFunction;
     }
 
-    public static Document read(String id, ByteSearchSection section) throws IOException {
-        byte[] readAll = section.toBytes();
-        return new Document(id, readAll);
+    public static ContentExtractor getContentExtractor() {
+        return extractor;
     }
 
     public static Document readContent(String id, byte[] content) throws IOException {
-        return new Document(id, content);
+        byte[] contentCopy = ArrayTools.clone(content);
+        return new Document(id, contentCopy, extractor.extractContent(content));
     }
 
     public static Document readTerms(String id, byte[] content) throws IOException {
-        return new Document(id, content, wordsplitter.extractAll(content));
+        return new Document(id, content);
     }
 
     static ByteSearch eol = ByteSearch.create("\\n");
@@ -102,12 +106,34 @@ public class Document {
         ArrayList<ByteSearchSection> split = eol.split(content);
         for (ByteSearchSection section : split) {
             ArrayList<ByteSearchSection> parts = space.split(section);
+            if (parts.size() < 2)
+                log.fatal("readTFIDF %s", ByteTools.toString(content));
             tfidf.add(parts.get(0).toString(), Double.parseDouble(parts.get(1).toString()));
         }
         return new Document(id, tfidf);
     }
 
-    public void setModel(TermVector v) {
+    public static Document readTFIDF2(String id, byte[] content) throws IOException {
+        ByteSearch space = ByteSearch.WHITESPACE;
+        ArrayMap<String, Double> tfidf = new ArrayMap();
+        ArrayList<ByteSearchSection> split = eol.split(content);
+        double magnitude = 0;
+        for (ByteSearchSection section : split) {
+            ArrayList<ByteSearchSection> parts = space.split(section);
+            if (parts.size() < 2)
+                log.fatal("readTFIDF %s", ByteTools.toString(content));
+            double freq = Double.parseDouble(parts.get(1).toString());
+            tfidf.add(parts.get(0).toString(), freq);
+            magnitude += freq * freq;
+        }
+        magnitude = Math.sqrt(magnitude);
+        for (Map.Entry<String, Double> entry : tfidf) {
+            entry.setValue(entry.getValue() / magnitude);
+        }
+        return new Document(id, tfidf);
+    }
+
+    public void setModel(TermVectorDouble v) {
         this.model = v;
     }
 
@@ -145,12 +171,21 @@ public class Document {
      * tokenized terms and the raw content from memory, so after calling this
      * getModel() and getTerms() can no longer be used.
      */
-    public TermVector getModel() {
+    public TermVectorDouble getModel() {
         if (model == null) {
-            model = new TermVectorEntropy(getTermsNoStopwords());
-            similarityFunction.reweight(this);
+            model = new TermVectorDouble(getTerms());
+            if (similarityFunction != null) {
+                similarityFunction.reweight(this);
+            }
         }
         return model;
+    }
+
+    public TermVectorEntropy getEModel() {
+        if (emodel == null) {
+            emodel = new TermVectorEntropy(getTerms());
+        }
+        return emodel;
     }
 
     /**
@@ -165,32 +200,33 @@ public class Document {
         return content;
     }
 
+    public byte[] getOriginalContent() {
+        return originalcontent;
+    }
+
     /**
      * @return an ArrayList of terms in the order they appear in the document.
      * Warning, using this will clear the getContent() representation.
      */
     public ArrayList<String> getTerms() {
         if (terms == null) {
-            terms = tokenizer.tokenize(getContent());
+            terms = new ArrayList();
+            for (String term : getTermsStopwords()) {
+                if (!extractor.isStopword(term)) {
+                    terms.add(term);
+                }
+            }
         }
         return terms;
     }
 
-    public ArrayList<String> getTermsNoStopwords() {
-        ArrayList<String> result = new ArrayList();
-        for (String term : getTerms()) {
-            if (!tokenizer.isStopword(term)) {
-                result.add(term);
-            }
+    public ArrayList<String> getTermsStopwords() {
+        ArrayList<String> terms = new ArrayList();
+        for (String term : extractor.getTokens(getContent())) {
+            term = term.toLowerCase();
+            terms.add(term);
         }
-        return result;
-    }
-
-    public byte[] getTokenizedContent() {
-        if (terms == null) {
-            getTerms();
-        }
-        return getContent();
+        return terms;
     }
 
     @Override

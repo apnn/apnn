@@ -1,6 +1,5 @@
 package Eval;
 
-import io.github.htools.io.Datafile;
 import io.github.htools.lib.Log;
 
 /**
@@ -10,23 +9,23 @@ import io.github.htools.lib.Log;
  *
  * @author Jeroen
  */
-public class Recall extends Metric {
+public class Recall extends MetricNoK {
 
     public static Log log = new Log(Recall.class);
 
-    public Recall(ResultSet groundtruth) {
+    public Recall(GTMap groundtruth) {
         super(groundtruth);
     }
 
     @Override
-    public double score(SuspiciousDocument groundtruth, SuspiciousDocument retrievedDocument, int k) {
+    public double score(GTQuery groundtruth, ResultQuery retrievedDocument) {
         int countRetrievedTopK = 0;
-        for (SourceDocument d : retrievedDocument.relevantDocuments.values()) {
-            if (d.position <= k) {
-                SourceDocument groundTruthResult = groundtruth.getSourceDocument(d.docid);
-                if (groundTruthResult != null) {
-                    countRetrievedTopK++;
-                }
+        for (int position = 0; position < retrievedDocument.retrievedDocuments.size(); position++) {
+                SourceDocument d = retrievedDocument.retrievedDocuments.get(position);
+            SourceDocument groundTruthResult = groundtruth.getSourceDocument(d.queryid);
+            if (groundTruthResult != null) {
+                log.info("query %s rank %d doc %s", retrievedDocument.queryid, d.position, d.queryid);
+                countRetrievedTopK++;
             }
         }
         return countRetrievedTopK / (double) groundtruth.relevantDocuments.size();

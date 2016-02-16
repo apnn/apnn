@@ -13,9 +13,10 @@ import io.github.htools.type.KV;
 import io.github.htools.type.TermVectorDouble;
 import it.unimi.dsi.fastutil.objects.Object2DoubleMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import org.apache.hadoop.conf.Configuration;
+
 import java.util.Comparator;
 import java.util.Map;
-import org.apache.hadoop.conf.Configuration;
 
 /**
  * An ANN that uses the top-k n-tfidf terms per document for indexing and estimating 
@@ -42,8 +43,8 @@ public class AnnCosEst extends AnnIndex<FHashMapObjectDouble<String>> {
         this(comparator, CosEstJob.getTermsSize(conf));
     }
 
-    private void initialize(int shingleSize) {
-        this.k = shingleSize;
+    private void initialize(int termsize) {
+        this.k = termsize;
         mapTerms = new FHashMapList(1000000);
         // set initial size to prevent rehashing too often
     }
@@ -56,8 +57,8 @@ public class AnnCosEst extends AnnIndex<FHashMapObjectDouble<String>> {
     }
 
     @Override
-    protected void getDocuments(CandidateList candidates, 
-            FHashMapObjectDouble<String> shortVector, Document document) {
+    protected void getDocuments(CandidateList candidates,
+                                FHashMapObjectDouble<String> shortVector, Document document) {
         HashMapDouble<Document> docCount = new HashMapDouble();
         this.countDocCodepoints += shortVector.size(); //
         for (Object2DoubleMap.Entry<String> fpentry : shortVector.object2DoubleEntrySet()) {
@@ -65,7 +66,7 @@ public class AnnCosEst extends AnnIndex<FHashMapObjectDouble<String>> {
             ObjectArrayList<KV<Document, Double>> list = mapTerms.get(fpentry.getKey());
             if (list != null) {
                 for (KV<Document, Double> doc : list) {
-                    log.info("%s %s %s %f %f", document.docid, fpentry.getKey(), doc.key.docid, tfidf, doc.value);
+                    //log.info("%s %s %s %f %f", document.docid, fpentry.getKey(), doc.key.docid, tfidf, doc.value);
                     docCount.add(doc.key, doc.value * tfidf);
                 }
             }
@@ -77,7 +78,7 @@ public class AnnCosEst extends AnnIndex<FHashMapObjectDouble<String>> {
     }
 
     @Override
-    protected FHashMapObjectDouble<String> getFingerprint(Document document) {
+    public FHashMapObjectDouble<String> getFingerprintSource(Document document) {
         // returns a 'shortVector' of the top-k n-tfidf terms
         // take top-k tfidf terms
         TopKMap<Double, String> topk = new TopKMap(this.k);
@@ -86,7 +87,7 @@ public class AnnCosEst extends AnnIndex<FHashMapObjectDouble<String>> {
         // convert these into a <String, Double> map.
         FHashMapObjectDouble<String> result = new FHashMapObjectDouble();
         for (Map.Entry<Double, String> entry : topk) {
-            double ntfidf = entry.getKey() / document.getModel().magnitude();
+            double ntfidf = entry.getKey();
             result.add(entry.getValue(), ntfidf);
         }
         return result;

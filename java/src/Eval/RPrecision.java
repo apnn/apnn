@@ -10,24 +10,23 @@ import io.github.htools.lib.Log;
  *
  * @author Jeroen
  */
-public class RPrecision extends Metric {
+public class RPrecision extends MetricNoK {
 
     public static Log log = new Log(RPrecision.class);
 
-    public RPrecision(ResultSet groundtruth) {
+    public RPrecision(GTMap groundtruth) {
         super(groundtruth);
     }
 
     @Override
-    public double score(SuspiciousDocument groundtruth, SuspiciousDocument retrievedDocument, int k) {
+    public double score(GTQuery groundtruth, ResultQuery retrievedDocument) {
         int retrievedRelevant = 0;
         int numberRelevant = groundtruth.relevantDocuments.size();
-        for (SourceDocument d : retrievedDocument.relevantDocuments.values()) {
-            if (d.position <= numberRelevant) {
-                SourceDocument groundTruthResult = groundtruth.getSourceDocument(d.docid);
-                if (groundTruthResult != null) {
-                    retrievedRelevant++;
-                }
+        for (int position = 0; position < numberRelevant && position < retrievedDocument.size(); position++) {
+            SourceDocument d = retrievedDocument.retrievedDocuments.get(position);
+            SourceDocument groundTruthResult = groundtruth.getSourceDocument(d.queryid);
+            if (groundTruthResult != null) {
+                retrievedRelevant++;
             }
         }
         return retrievedRelevant / (double) numberRelevant;

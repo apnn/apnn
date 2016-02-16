@@ -14,8 +14,13 @@ public class DocumentReaderContent extends DocumentReaderTerms {
     public Document readDocument(ArchiveEntry entry) throws IOException {
         return Document.readContent(getDocID(entry.getName()), entry.readAll());
     }
-    
+
+    /**
+     * @param filename
+     * @return the document ID which must be used as the filename.
+     */
     public String getDocID(String filename) {
-        return Integer.toString(Integer.parseInt(filename));
+        filename = filename.substring(filename.lastIndexOf('/') + 1);
+        return Integer.toString(Integer.parseInt(number.extract(filename)));
     }
 }

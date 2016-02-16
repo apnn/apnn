@@ -1,5 +1,6 @@
 package MinHash;
 
+import Canopy.AnnCanopy.Doc;
 import SimilarityFile.SimilarityWritable;
 import TestGeneric.AnnIndex;
 import TestGeneric.CandidateList;
@@ -8,9 +9,10 @@ import io.github.htools.collection.HashMapDouble;
 import io.github.htools.fcollection.FHashMapIntList;
 import io.github.htools.lib.Log;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import org.apache.hadoop.conf.Configuration;
+
 import java.util.Comparator;
 import java.util.Map;
-import org.apache.hadoop.conf.Configuration;
 
 /**
  * @author Jeroen
@@ -39,18 +41,19 @@ public class AnnMinHash extends AnnIndex<int[]> {
     }
     
     @Override
-    protected void addDocument(Document document, int[] minHash) {
-        for (int i = 0; i < minHash.length; i++) {
-            minHashTables[i].add(minHash[i], document);
+    protected void addDocument(Document document, int[] minhash) {
+        Doc<int[]> doc = this.createDocument(document, minhash);
+        for (int i = 0; i < minhash.length; i++) {
+            minHashTables[i].add(minhash[i], doc.getDocument());
         }
     }
 
     @Override
-    protected void getDocuments(CandidateList list, int[] minHash, Document document) {
+    protected void getDocuments(CandidateList list, int[] minhash, Document doc) {
        HashMapDouble<Document> documentCount = new HashMapDouble();
-       for (int hashFunction = 0; hashFunction < minHash.length; hashFunction++) {
+       for (int hashFunction = 0; hashFunction < minhash.length; hashFunction++) {
            FHashMapIntList<Document> minHashtable = minHashTables[hashFunction];
-           ObjectArrayList<Document> bucket = minHashtable.get(minHash[hashFunction]);
+           ObjectArrayList<Document> bucket = minHashtable.get(minhash[hashFunction]);
            if (bucket != null)
                documentCount.addAll(bucket);
        }
@@ -60,7 +63,7 @@ public class AnnMinHash extends AnnIndex<int[]> {
     }
 
     @Override
-    protected int[] getFingerprint(Document document) {
+    public int[] getFingerprintSource(Document document) {
         int[] fingerprint = minhash.getMinHash(document);
         //log.info("%d %s", document.docid, ArrayTools.toString(fingerprint));
         return fingerprint;

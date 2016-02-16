@@ -1,18 +1,15 @@
 package Canopy;
 
 import SimilarityFile.SimilarityWritable;
-import TestGeneric.AnnIndex;
 import TestGeneric.CandidateList;
 import TestGeneric.Document;
-import io.github.htools.collection.ArrayMap;
-import io.github.htools.collection.TopKMap;
-import io.github.htools.lib.CollectionTools;
 import io.github.htools.lib.Log;
 import io.github.htools.type.TermVectorDouble;
+import org.apache.hadoop.conf.Configuration;
+
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
-import org.apache.hadoop.conf.Configuration;
 
 /**
  * An ANN that uses a cheap similarity function to assign documents to canopies
@@ -22,10 +19,10 @@ import org.apache.hadoop.conf.Configuration;
  *
  * @author Jeroen
  */
-public abstract class AnnCanopy<K> extends AnnIndex<K> {
+public abstract class AnnCanopy<K> extends TestGeneric.AnnIndex<K> {
 
     public static Log log = new Log(AnnCanopy.class);
-    ArrayList<Doc> docs = new ArrayList();
+    ArrayList<Doc<K>> docs = new ArrayList();
     ArrayList<Canopy> canopies = new ArrayList();
     double T1, T2;
     int k = 20;
@@ -40,12 +37,21 @@ public abstract class AnnCanopy<K> extends AnnIndex<K> {
 
     public AnnCanopy(Comparator<SimilarityWritable> comparator, Configuration conf) {
         this(comparator, CanopyJob.getT1(conf), CanopyJob.getT2(conf),
-             CanopyJob.getTermsSize(conf));
+                CanopyJob.getTermsSize(conf));
     }
 
     @Override
-    protected void addDocument(Document document, K shortVector) {
-        docs.add(new Doc(document, shortVector));
+    protected void addDocument(Document document, K fingerprint) {
+        Doc<K> d = new Doc(document, fingerprint);
+        docs.add(d);
+    }
+
+    public Doc<K> createDocumentSource(Document document) {
+        return new Doc(document, this.getFingerprintSource(document));
+    }
+
+    public Doc<K> createDocumentQuery(Document document) {
+        return new Doc(document, this.getFingerprintQuery(document));
     }
 
     public void finishIndex() {
@@ -56,22 +62,21 @@ public abstract class AnnCanopy<K> extends AnnIndex<K> {
 
     public void createCanopies() {
         for (int i = docs.size() - 1; i >= 0; i--) {
-            Doc doc = docs.get(i);
+            Doc<K> doca = docs.get(i);
             for (Canopy c : canopies) {
-                double d = fastDistance(c.centroid, doc);
+                double d = fastDistance(c.centroid, doca);
                 if (d <= T1) {
-                    c.add(doc);
-                    if (distance(c.centroid, doc) <= T2) {
-                        doc.bound = true;
+                    c.add(doca);
+                    if (distance(c.centroid, doca) <= T2) {
+                        doca.bound = true;
+                        log.info("%s %d %f %b", doca.document.docid, c.id, d, doca.bound);
                     }
                 }
-                if (doc.document.docid.equals("9168")) {
-                    log.info("%s %d %f %b", doc.document.docid, c.id, d, doc.bound);
-                }
             }
-            if (!doc.bound) {
-                Canopy c = new Canopy(doc);
+            if (!doca.bound) {
+                Canopy c = new Canopy(doca);
                 canopies.add(c);
+                log.info("new canopy %s %d", doca.document.docid, c.id);
                 for (int j = docs.size() - 1; j > i; j--) {
                     Doc docb = docs.get(j);
                     double d = fastDistance(c.centroid, docb);
@@ -102,10 +107,9 @@ public abstract class AnnCanopy<K> extends AnnIndex<K> {
 
     @Override
     protected void getDocuments(CandidateList candidates,
-            K shortVector, Document document) {
-        Doc doc = new Doc(document, shortVector);
+            K fingerprint, Document document) {
         HashSet<String> alreadyadded = new HashSet();
-
+        Doc doc = new Doc(document, fingerprint);
         for (Canopy c : canopies) {
             if (fastDistance(c.centroid, doc) < T1) {
                 log.info("addDocuments %s Canopy %d %d", doc.document.docid, c.id, c.members.size());
@@ -122,9 +126,9 @@ public abstract class AnnCanopy<K> extends AnnIndex<K> {
         }
     }
 
-    protected abstract double fastDistance(Doc<K> a, Doc<K> b);
+    public abstract double fastDistance(Doc<K> a, Doc<K> b);
 
-    protected abstract double distance(Doc<K> a, Doc<K> b);
+    public abstract double distance(Doc<K> a, Doc<K> b);
 
     static int iid = 0;
 
@@ -144,7 +148,7 @@ public abstract class AnnCanopy<K> extends AnnIndex<K> {
         }
     }
 
-    public class Doc<K> {
+    public static class Doc<K> {
 
         Document document;
         K key;
@@ -155,6 +159,10 @@ public abstract class AnnCanopy<K> extends AnnIndex<K> {
             this.key = key;
         }
 
+        public Document getDocument() {
+            return document;
+        }
+        
         public K getKey() {
             return key;
         }

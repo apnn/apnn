@@ -2,15 +2,17 @@ package ShingleT2;
 
 import Shingle.AnnShingle;
 import SimilarityFile.SimilarityWritable;
+import TestGeneric.ContentExtractor;
+import TestGeneric.ContentExtractorPAN;
 import TestGeneric.Document;
-import TestGeneric.Tokenizer;
 import io.github.htools.fcollection.FHashMapIntList;
 import io.github.htools.fcollection.FHashSetInt;
 import io.github.htools.lib.Log;
 import io.github.htools.lib.MathTools;
+import org.apache.hadoop.conf.Configuration;
+
 import java.util.ArrayList;
 import java.util.Comparator;
-import org.apache.hadoop.conf.Configuration;
 
 /**
  * @author Jeroen
@@ -18,7 +20,7 @@ import org.apache.hadoop.conf.Configuration;
 public class ShingleT2 extends AnnShingle {
 
     public static Log log = new Log(ShingleT2.class);
-    Tokenizer tokenizer = new Tokenizer();
+    ContentExtractor tokenizer = new ContentExtractorPAN();
     int shingleSize = 2;
     FHashMapIntList<Document> shinglesHashCodes;
 
@@ -34,9 +36,9 @@ public class ShingleT2 extends AnnShingle {
     }
 
     @Override
-    protected FHashSetInt getFingerprint(Document document) {
+    public FHashSetInt getFingerprintSource(Document document) {
         FHashSetInt results = new FHashSetInt();
-        ArrayList<String> terms = document.getTerms();
+        ArrayList<String> terms = document.getTermsStopwords();
         for (int ss = shingleSize; ss >= 2; ss--) {
             LOOP:
             for (int i = ss; i <= terms.size(); i++) {

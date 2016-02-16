@@ -1,8 +1,9 @@
 package TestGenericMR;
 
 import TestGeneric.Document;
-import TestGeneric.TokenizerTrec;
+import TestGeneric.ContentExtractorRobust;
 import io.github.htools.io.Datafile;
+import io.github.htools.lib.ByteTools;
 import io.github.htools.lib.Log;
 import io.github.htools.search.ByteSearchSection;
 import io.github.htools.search.ByteSection;
@@ -21,7 +22,7 @@ public class DocumentReaderContentTrec implements DocumentReader {
     static ByteSection DOCNO = ByteSection.create("<docno>", "</docno>");
 
     public DocumentReaderContentTrec() {
-       Document.setTokenizer( new TokenizerTrec() ); 
+       Document.setContentExtractor(new ContentExtractorRobust() ); 
     }
     
     /**
@@ -56,7 +57,7 @@ public class DocumentReaderContentTrec implements DocumentReader {
         ByteSearchSection docidsection = DOCNO.findPos(section);
         String docid = docidsection.toTrimmedString();
         docidsection.erase();
-        Document document = Document.read(docid, section);
+        Document document = Document.readContent(docid, section.toBytes());
         return document;
     }
 

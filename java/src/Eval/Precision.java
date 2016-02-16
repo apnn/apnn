@@ -10,25 +10,27 @@ import io.github.htools.lib.Log;
  *
  * @author Jeroen
  */
-public class Precision extends Metric {
+public class Precision extends MetricNoK {
 
     public static Log log = new Log(Precision.class);
 
-    public Precision(ResultSet groundtruth) {
+    public Precision(GTMap groundtruth) {
         super(groundtruth);
     }
 
     @Override
-    public double score(SuspiciousDocument groundtruth, SuspiciousDocument retrievedDocument, int k) {
+    public double score(GTQuery groundtruth, ResultQuery retrievedDocument) {
         int retrievedRelevant = 0;
-        for (SourceDocument d : retrievedDocument.relevantDocuments.values()) {
-            if (d.position <= k) {
-                SourceDocument groundTruthResult = groundtruth.getSourceDocument(d.docid);
-                if (groundTruthResult != null) {
-                    retrievedRelevant++;
-                }
+        int retrievedIrrelevant = 0;
+        for (int position = 0; position < retrievedDocument.size(); position++) {
+            SourceDocument d = retrievedDocument.retrievedDocuments.get(position);
+            SourceDocument groundTruthResult = groundtruth.getSourceDocument(d.queryid);
+            if (groundTruthResult != null) {
+                retrievedRelevant++;
+            } else {
+                retrievedIrrelevant++;
             }
         }
-        return retrievedRelevant / (double) k;
+        return retrievedRelevant / (double) (retrievedRelevant + retrievedIrrelevant);
     }
 }

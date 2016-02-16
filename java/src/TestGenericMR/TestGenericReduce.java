@@ -39,7 +39,7 @@ public class TestGenericReduce extends Reducer<Text, Candidate, NullWritable, Nu
         RETURNED,
         MEANCOSINEERROR
     }
-    Conf conf;
+    protected Conf conf;
     SimilarityFile similarityFile;
     Comparator<SimilarityWritable> comparator;
     // the number of most similar documents to keep, configurable as "topk".
@@ -53,7 +53,10 @@ public class TestGenericReduce extends Reducer<Text, Candidate, NullWritable, Nu
         resultSize = TestGenericJob.getTopK(conf);
         scanSize = resultSize;
         comparator = getComparator();
-
+        setupOutput(context);
+    }
+    
+    public void setupOutput(Context context) {
         // setup a single SimilarityFile that contains the k-most similar source
         // documents for a given suspicious document
         if (conf.getNumReduceTasks()== 1) {
@@ -91,7 +94,7 @@ public class TestGenericReduce extends Reducer<Text, Candidate, NullWritable, Nu
         // write the top-k most similar documents to file
         double abserror = 0;
         for (Candidate c : list) {
-            log.info("%s %s %f %f", c.id, c.source, c.indexSimilarity, c.measureSimilarity);
+            log.info("%s %s %f %f", c.query, c.source, c.indexSimilarity, c.measureSimilarity);
             writeSimilarity(c);
             abserror += Math.abs(c.indexSimilarity - c.measureSimilarity);
         }
@@ -125,11 +128,15 @@ public class TestGenericReduce extends Reducer<Text, Candidate, NullWritable, Nu
     
     @Override
     public void cleanup(Context context) {
-        similarityFile.closeWrite();
+        closeOutput();
         double meanerror = DoubleTools.mean(this.cosineerror);
         context.getCounter(REDUCE.MEANCOSINEERROR).setValue((long)(1000000 * meanerror));
     }
 
+    public void closeOutput() {
+        similarityFile.closeWrite();
+    }
+    
     public void writeSimilarity(Candidate candidate) throws IOException {
         candidate.write(similarityFile);
     }

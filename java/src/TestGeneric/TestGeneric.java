@@ -3,12 +3,12 @@ package TestGeneric;
 import SimilarityFile.SimilarityFile;
 import SimilarityFile.SimilarityWritable;
 import SimilarityFunction.CosineSimilarityTFIDF;
-import TestGeneric.Candidate;
 import TestGenericMR.DocumentReader;
 import TestGenericMR.DocumentReaderTerms;
 import io.github.htools.io.Datafile;
 import io.github.htools.io.HPath;
 import io.github.htools.lib.Log;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -64,7 +64,7 @@ public abstract class TestGeneric {
     protected void writeSimilarities(Document queryDocument,
             CandidateList topKSourceDocuments) throws IOException {
         for (Candidate candidate : topKSourceDocuments.sorted()) {
-            candidate.id = queryDocument.docid;
+            candidate.query = queryDocument.docid;
             candidate.write(similarityFile);
         }
     }

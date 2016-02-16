@@ -11,9 +11,11 @@ import io.github.htools.lib.ByteTools;
 import io.github.htools.lib.Log;
 import io.github.htools.lib.MathTools;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import org.apache.hadoop.conf.Configuration;
+
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Map;
-import org.apache.hadoop.conf.Configuration;
 
 /**
  * @author Jeroen
@@ -62,15 +64,17 @@ public class AnnShingle extends AnnIndex<FHashSetInt> {
         }
         for (Map.Entry<Document, Integer> entry : docCount.entrySet()) {
             double estimatedSimilarity = entry.getValue() / (double) shingleHashCodes.size();
+            //double estimatedSimilarity = entry.getValue();
             candidates.add(entry.getKey(), estimatedSimilarity); // todo add estimation similarity
         }
     }
 
     @Override
-    protected FHashSetInt getFingerprint(Document document) {
+    protected FHashSetInt getFingerprintSource(Document document) {
         FHashSetInt result = new FHashSetInt();
-        byte[] content = ByteTools.toFullTrimmed(document.getTokenizedContent(), 
-                0, document.getTokenizedContent().length);
+        ArrayList<String> termsStopwords = document.getTermsStopwords();
+        byte[] content = ByteTools.toFullTrimmed(document.getContent(), 
+                0, document.getContent().length);
         if (content.length < shingleSize) {
             int hashcode = MathTools.hashCode(content, 0, content.length);
             result.add(hashcode);

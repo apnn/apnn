@@ -1,7 +1,8 @@
 package ShingleWordStart;
 
-import TestGeneric.Tokenizer;
+import TestGeneric.ContentExtractor;
 import TestGenericMR.TestGenericJob;
+import TestGenericMR.TestGenericMapContent;
 import io.github.htools.lib.Log;
 import io.github.htools.hadoop.Conf;
 
@@ -28,7 +29,7 @@ public class ShingleWordStartJob {
 
     public static void main(String[] args) throws Exception {
 
-        Conf conf = new Conf(args, "sourcepath suspiciouspath output -v vocabulary -s shinglesize");
+        Conf conf = new Conf(args, "sourcepath suspiciouspath output -v vocabulary -s shinglesize --noninteractive");
 
         TestGenericJob.setAnnIndex(conf, AnnShingleWordStart.class);
 
@@ -38,8 +39,7 @@ public class ShingleWordStartJob {
                 conf.get("output"),
                 conf.get("vocabulary")
         );
-
-        job.useDocumentContent();
+        job.setMapperClass(ShingleWordStartMap.class);
         job.waitForCompletion(true);
     }
 }

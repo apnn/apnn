@@ -6,19 +6,19 @@ import io.github.htools.hadoop.Conf;
 import org.apache.hadoop.conf.Configuration;
 
 /**
- * Basis for this method is to use only the top-k tfidf terms per document. For 
- * the index, these are stored in an inverted list <term, list<document, n-tfidf>>,
- * where n-tfidf is the tf * idf / ||D||, or the tf-idf for the term divided by 
- * the magnitude of the document vector. For suspicious documents, the postings 
- * lists for its top-k tfidf terms are traversed, per source document accumulating 
- * the dot-product between its n-tfidf and the n-tfidf of the suspicious document.
- * Thus per document we obtain a lower bound estimation of the cosine based on the
- * top-k terms of each document.
+ * Basis for this method is to use only the top-k tfidf terms per document. For
+ * the index, these are stored in an inverted list <term,
+ * list<document, n-tfidf>>, where n-tfidf is the tf * idf / ||D||, or the
+ * tf-idf for the term divided by the magnitude of the document vector. For
+ * suspicious documents, the postings lists for its top-k tfidf terms are
+ * traversed, per source document accumulating the dot-product between its
+ * n-tfidf and the n-tfidf of the suspicious document. Thus per document we
+ * obtain a lower bound estimation of the cosine based on the top-k terms of
+ * each document.
  *
- * parameters:
- * vocabulary=vocfile : points to the vocabulary file
- * termssize=k : top-k terms to use for each document
- * 
+ * parameters: vocabulary=vocfile : points to the vocabulary file termssize=k :
+ * top-k terms to use for each document
+ *
  * @author Jeroen
  */
 public class CosEstJob {
@@ -28,7 +28,7 @@ public class CosEstJob {
 
     public static void main(String[] args) throws Exception {
 
-        Conf conf = new Conf(args, "sourcepath querypath output -v vocabulary");
+        Conf conf = new Conf(args, "sourcepath querypath output -v vocabulary -t [termssize] --noninteractive");
         TestGenericJob.setAnnIndex(conf, AnnCosEst.class);
 
         TestGenericJob job = new TestGenericJob(conf,
@@ -42,7 +42,7 @@ public class CosEstJob {
         // don't remove stopwords when creating shingles
         //job.setTokenizer(Tokenizer.class);
 
-        job.waitForCompletion(true);
+        job.submitJob();
     }
 
     /**

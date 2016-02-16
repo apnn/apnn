@@ -5,6 +5,8 @@ import io.github.htools.io.Datafile;
 import io.github.htools.io.compressed.ArchiveEntry;
 import io.github.htools.io.compressed.ArchiveFile;
 import io.github.htools.lib.Log;
+import org.apache.hadoop.fs.FileSystem;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -16,15 +18,16 @@ import java.util.Iterator;
 public class DocumentReaderTerms implements DocumentReader {
 
     public static Log log = new Log(DocumentReaderTerms.class);
+    public static FileSystem fs;
 
     /**
-     * @param documentFilename
+     * @param file
      * @return an ArrayList of Documents read from an ArchiveFile on HDFS with
      * the name documentFilename
      * @throws IOException
      */
     public ArrayList<Document> readDocuments(Datafile file) throws IOException {
-
+        fs = file.getFileSystem();
         ArrayList<Document> documents = new ArrayList();
         for (Document document : iterableDocuments(file)) {
             // extract the docid from the filename (in the tar-file)
@@ -38,11 +41,13 @@ public class DocumentReaderTerms implements DocumentReader {
      * An Iterable over the documents in an archiveFile on HDFS with the name
      * documentFilename
      *
-     * @param documentFilename
+     * @param file
      * @return
      * @throws IOException
      */
     public Iterable<Document> iterableDocuments(Datafile file) {
+        fs = file.getFileSystem();
+        file.setBufferSize(1000000);
         ArchiveFile archiveFile = ArchiveFile.getReader(file);
         return new DocumentIterator(archiveFile);
     }
@@ -50,7 +55,8 @@ public class DocumentReaderTerms implements DocumentReader {
     public Document readDocument(ArchiveEntry entry) throws IOException {
         return Document.readTerms(entry.getName(), entry.readAll());
     }
-    
+
+    static int i = 0;
     class DocumentIterator implements Iterable<Document>, Iterator<Document> {
 
         Iterator<ArchiveEntry> iterator;
@@ -78,6 +84,7 @@ public class DocumentReaderTerms implements DocumentReader {
                     return document;
                 }
             } catch (IOException ex) {
+                log.fatalexception(ex, "next readDocument");
             }
             return null;
         }

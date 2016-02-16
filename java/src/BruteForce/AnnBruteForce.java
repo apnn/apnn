@@ -6,11 +6,13 @@ import TestGeneric.Candidate;
 import TestGeneric.CandidateList;
 import TestGeneric.Document;
 import io.github.htools.lib.Log;
-import java.util.ArrayList;
-import java.util.Comparator;
 import org.apache.hadoop.conf.Configuration;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+
 /**
+ *
  * @author Jeroen
  */
 public class AnnBruteForce extends AnnIndex {
@@ -43,12 +45,12 @@ public class AnnBruteForce extends AnnIndex {
     protected void assignMeasureSimilarity(CandidateList candidates, Document document) {
         for (Candidate candidate : candidates) {
             candidate.measureSimilarity = candidate.indexSimilarity;
-            candidate.id = document.docid;
+            candidate.query = document.docid;
         }
-    }    
+    }
     
     @Override
-    protected Object getFingerprint(Document document) {
+    public Object getFingerprintSource(Document document) {
         return null;
     }
 }

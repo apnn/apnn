@@ -1,17 +1,17 @@
 package MinHash;
 
 import SimilarityFile.IndexSimilarity;
-import SimilarityFile.SimilarityFile;
-import SimilarityFunction.CosineSimilarityTFIDF;
 import TestGeneric.AnnIndex;
 import TestGenericMR.TestGenericJob;
-import io.github.htools.lib.Log;
 import io.github.htools.hadoop.Conf;
-import static io.github.htools.lib.PrintTools.sprintf;
+import io.github.htools.lib.Log;
+import org.apache.hadoop.conf.Configuration;
+
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
-import org.apache.hadoop.conf.Configuration;
+
+import static io.github.htools.lib.PrintTools.sprintf;
 
 /**
  * Computes the cosine similarity between all suspicious and source documents of
@@ -48,7 +48,7 @@ public class MinHashJob extends TestGenericJob {
     
     public static void main(String[] args) throws Exception {
 
-        Conf conf = new Conf(args, "sourcepath suspiciouspath output -v vocabulary -h hashfunctions -b bandwidth");
+        Conf conf = new Conf(args, "sourcepath suspiciouspath output -v vocabulary -h hashfunctions -b bandwidth --noninteractive");
         MinHashJob.setAnnIndex(conf, AnnMinHash.class);
         
         AnnMinHash m = new AnnMinHash(IndexSimilarity.singleton, conf);
@@ -59,8 +59,10 @@ public class MinHashJob extends TestGenericJob {
                 conf.get("output"),
                 conf.get("vocabulary")
         );
+        
+        job.useDocumentTFIDF();
                 
-        job.waitForCompletion(true);
+        job.submitJob();
     }
     
     /**
@@ -70,7 +72,7 @@ public class MinHashJob extends TestGenericJob {
      */
     public static int getNumHashFunctions(Configuration conf) {
         int minhashfunctions = conf.getInt(MINHASHFUNCTIONS, 240);
-        log.info("getNumHashFuctions %d", minhashfunctions);
+        //log.info("getNumHashFuctions %d", minhashfunctions);
         return minhashfunctions;
     }    
 

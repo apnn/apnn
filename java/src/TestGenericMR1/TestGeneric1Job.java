@@ -68,10 +68,11 @@ public class TestGeneric1Job extends Job {
     }
     
     public static Conf tweakConf(Conf conf) {
-        conf.setMapMemoryMB(4096);
+        
+        conf.raiseMapMemoryMB(4096);
         conf.setTaskTimeout(30000000);
         conf.setMapSpeculativeExecution(false);
-        conf.setSortMB(1000);
+        conf.setSortMB(100);
         return conf;
     }
 
@@ -101,6 +102,17 @@ public class TestGeneric1Job extends Job {
     public void useDocumentContentTrec() {
         setMapperClass(TestGenericMapContentTrec.class);
     }
+    
+    public void submitJob() throws ClassNotFoundException, InterruptedException, IOException {
+        this.setJobName(getParameters(getConfiguration(), 
+                conf.get("source"), conf.get("query"), conf.get("output")));
+        if (this.getConfiguration().getBoolean("noninteractive", false)) {
+            this.submit();
+        } else {
+            this.waitForCompletion(true);
+        }
+    }
+    
 
     
 }

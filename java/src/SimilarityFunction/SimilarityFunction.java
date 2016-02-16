@@ -1,7 +1,7 @@
 package SimilarityFunction;
 
 import TestGeneric.Document;
-import Vocabulary.Idf;
+import VocabularyPAN.Idf;
 import io.github.htools.io.Datafile;
 
 /**

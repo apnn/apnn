@@ -40,7 +40,7 @@ public class Reader {
             HashMap<String, Object> next = r.next();
             if (next != null) {
                 //log.info("%s", next);
-                w.id = getDocId((String)next.get("reference"));
+                w.query = getDocId((String)next.get("reference"));
                 HashMapInt<String> sources = new HashMapInt();
                 for (Object feature : ((ArrayList) next.get("feature"))) {
                     HashMap<String, Object> featureMap = (HashMap) feature;

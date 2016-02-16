@@ -1,14 +1,15 @@
 package RepackTFIDF;
 
-import io.github.htools.lib.Log;
 import io.github.htools.hadoop.Conf;
 import io.github.htools.hadoop.Job;
 import io.github.htools.hadoop.io.StringInputFormat;
 import io.github.htools.io.HDFSPath;
-import java.io.IOException;
-import java.util.ArrayList;
+import io.github.htools.lib.Log;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.lib.output.NullOutputFormat;
+
+import java.io.IOException;
+import java.util.ArrayList;
 
 /**
  * Extract the document frequency of terms from a Wikipedia XML source file
@@ -30,7 +31,7 @@ public class RepackJob {
         Path out = new Path(conf.get("output"));
 
         Job job = new Job(conf, input, out, conf.get("vocabulary"));
-        job.setMaxMapAttempts(1);
+        job.setMaxMapAttempts(2);
         setupInput(job, input);
 
         job.setNumReduceTasks(0);
@@ -39,7 +40,10 @@ public class RepackJob {
         
         job.waitForCompletion(true);
     }
-    
+
+    /**
+     * add all files in the given paths as input.
+     */
     static void setupInput(Job job, String input) throws IOException {
         job.setInputFormatClass(StringInputFormat.class);
         ArrayList<String> sourceFiles = new ArrayList();

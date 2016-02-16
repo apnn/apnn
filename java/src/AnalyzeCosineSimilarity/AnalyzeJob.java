@@ -1,16 +1,18 @@
 package AnalyzeCosineSimilarity;
 
-import TestGenericMR.*;
-import io.github.htools.lib.Log;
+import TestGenericMR.TestGenericJob;
 import io.github.htools.hadoop.Conf;
 import io.github.htools.hadoop.Job;
-import java.io.IOException;
-import org.apache.hadoop.io.IntWritable;
+import io.github.htools.lib.Log;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.lib.output.NullOutputFormat;
 
+import java.io.IOException;
+
 /**
- * 
+ * Analyzing the contribution of the top-5 tdidf terms to the total cosine similarity
+ * between a document and its nearest neighbor.
+ *
  * @author Jeroen
  */
 public class AnalyzeJob {

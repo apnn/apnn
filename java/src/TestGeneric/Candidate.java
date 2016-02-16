@@ -20,7 +20,7 @@ public class Candidate extends SimilarityWritable {
 
     public Candidate clone() {
         Candidate clone = new Candidate();
-        clone.id = id;
+        clone.query = query;
         clone.source = source;
         clone.indexSimilarity = indexSimilarity;
         clone.measureSimilarity = measureSimilarity;

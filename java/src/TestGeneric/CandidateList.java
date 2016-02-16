@@ -12,7 +12,6 @@ import java.util.HashMap;
  */
 public class CandidateList extends TopK<Candidate> {
     public static Log log = new Log(CandidateList.class);
-    public HashMap<String, Candidate> candidateLookup = new HashMap();
 
     public CandidateList(int k, Comparator<SimilarityWritable> comparator) {
         super(k, comparator);
@@ -21,14 +20,12 @@ public class CandidateList extends TopK<Candidate> {
     @Override
     public Candidate poll() {
         Candidate removed = super.poll();
-        candidateLookup.remove(removed.document.docid);
         return removed;
     }
     
     public Candidate add(Document d, double indexSimilarity) {
         Candidate c = new Candidate(d, indexSimilarity); 
         if (add(c)) {
-            candidateLookup.put(d.docid, c);
             return c;
         }
         return null;

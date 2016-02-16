@@ -33,21 +33,21 @@ import java.util.Map;
  */
 public abstract class Metric {
 
-    public static Log log = new Log(Metric.class);
+    public static Log log = new Log(MetricAtK.class);
     public static boolean useIndexSimilarity = false;
-    private ResultSet groundTruth;
+    protected GTMap groundTruth;
 
-    public Metric(ResultSet gt) {
+    public Metric(GTMap gt) {
         groundTruth = gt;
     }
-
+    
     public static void main(String[] args) throws IOException, Exception {
         Conf conf = new Conf(args, "metric groundtruth results  --hdfs --ie -r [rank]");
 
         Datafile groundtruth = conf.getBoolean("hdfs", false)
                 ? conf.getHDFSFile("groundtruth")
                 : conf.getFSFile("groundtruth");
-        ResultSet gt = loadFile(groundtruth);
+        GTMap gt = loadFile(groundtruth);
         int ranks[] = conf.getInts("rank");
         if (ranks.length == 0) {
             ranks = new int[]{10};
@@ -62,38 +62,51 @@ public abstract class Metric {
         log.info("%s", path.getCanonicalPath());
         for (Datafile resultFile : path.getFiles()) {
             log.info("%s", resultFile.getCanonicalPath());
-            ResultSet retrievedDocuments = loadFile(resultFile);
+            ResultSet retrievedDocuments = loadResults(resultFile);
             for (String metricname : conf.get("metric").split(",")) {
                 double scores[] = new double[ranks.length];
                 Metric metric = get(metricname, gt);
-                for (int i = 0; i < ranks.length; i++) {
-                    int rank = ranks[i];
-                    HashMap<Document, Double> scorePerDocument = metric.score(retrievedDocuments, rank);
+                if (metric instanceof MetricAtK) {
+                    for (int i = 0; i < ranks.length; i++) {
+                        int rank = ranks[i];
+                        HashMap<Document, Double> scorePerDocument = ((MetricAtK) metric).score(retrievedDocuments, rank);
+                        double avgScore = metric.mean(scorePerDocument);
+                        scores[i] = avgScore;
+                        log.printf("%s n=%d %s@%3d=%f", resultFile.getName(), scorePerDocument.size(), metricname, rank, avgScore);
+                    }
+                    if (ranks.length > 1) {
+                        log.printf("%s", ArrayTools.toString(scores, "\t"));
+                    }
+                } else {
+                    HashMap<Document, Double> scorePerDocument = ((MetricNoK) metric).score(retrievedDocuments);
                     double avgScore = metric.mean(scorePerDocument);
-                    scores[i] = avgScore;
-                    log.printf("%s n=%d %s@%3d=%f", resultFile.getName(), scorePerDocument.size(), metricname, rank, avgScore);
+                    log.printf("%s n=%d %s=%f", resultFile.getName(), scorePerDocument.size(), metricname, avgScore);
                 }
-                if (ranks.length > 1) {
-                    log.printf("%s", ArrayTools.toString(scores, "\t"));
-                }
+
             }
         }
     }
 
-    public static Metric get(String metric, ResultSet groundtruth) throws Exception {
+    public static Metric get(String metric, GTMap groundtruth) {
         switch (metric.toLowerCase()) {
             case "ndcg":
                 return new NDCG(groundtruth);
+            case "ap":
+                return new AP(groundtruth);
             case "recall":
                 return new Recall(groundtruth);
+            case "recallk":
+                return new RecallAtK(groundtruth);
             case "precision":
                 return new Precision(groundtruth);
+            case "precisionk":
+                return new PrecisionAtK(groundtruth);
             case "rprecision":
                 return new RPrecision(groundtruth);
             case "krecall":
                 return new KRecall(groundtruth);
             default:
-                throw new Exception("unknown metric " + metric);
+                throw new RuntimeException("unknown metric " + metric);
         }
     }
 
@@ -101,51 +114,8 @@ public abstract class Metric {
         return (useIndexSimilarity) ? d.indexSimilarity : d.measureSimilarity;
     }
 
-    /**
-     * @param groundtruth the optimal retrieved set of nearest neighbors for a
-     * given suspicious document
-     * @param retrievedDocument the retrieved set of nearest neighbors for a
-     * given suspicious document
-     * @return the metrics score for the nearest neighbors for the retrieved
-     * document vs the ground truth
-     */
-    public abstract double score(SuspiciousDocument groundtruth,
-            SuspiciousDocument retrievedDocument, int k);
-
-    /**
-     * @param retrievedDocument
-     * @return the score for a single document with its retrieved nearest
-     * neighbors
-     */
-    public double score(SuspiciousDocument retrievedDocument, int k) {
-        SuspiciousDocument gt = groundTruth.get(retrievedDocument.docid);
-        if (gt != null && gt.relevantDocuments.size() > 0) {
-            return score(gt, retrievedDocument, k);
-        } else {
-            return 0;
-        }
-    }
-
-    public Map<String, SuspiciousDocument> getGroundTruth() {
+    public Map<String, GTQuery> getGroundTruth() {
         return Collections.unmodifiableMap(groundTruth);
-    }
-
-    /**
-     * @param resultFile
-     * @return a map of scored documents (id, score) for the retrieved nearest
-     * neighbors in the given file.
-     */
-    public HashMap<Document, Double> score(ResultSet retrievedDocuments, int k) {
-        HashMap<Document, Double> results = new HashMap();
-        for (SuspiciousDocument suspiciousDoc : this.groundTruth.values()) {
-            SuspiciousDocument scored = retrievedDocuments.get(suspiciousDoc.docid);
-            if (scored != null) {
-                double score = Metric.this.score(scored, k);
-                //log.info("%s score %f", Metric.this.getClass().getCanonicalName(), score);
-                results.put(scored, score);
-            }
-        }
-        return results;
     }
 
     /**
@@ -161,32 +131,68 @@ public abstract class Metric {
      * @return a Set of the SuspiciousDocuments in the SimilarityFile with the
      * list of nearest neighbor SourceDocuments.
      */
-    public static ResultSet loadFile(Datafile file) {
+    public static GTMap loadFile(Datafile file) {
         file.setBufferSize(1000000);
         HashMapList<String, SourceDocument> sourceMap = new HashMapList(11100);
         SimilarityFile similarityFile = new SimilarityFile(file);
         for (SimilarityWritable similarity : similarityFile) {
             SourceDocument sd = new SourceDocument(similarity);
-            sourceMap.add(similarity.id, sd);
+            sourceMap.add(similarity.query, sd);
+        }
+
+        GTMap map = new GTMap(11100); // prevent rehashing
+        for (Map.Entry<String, ArrayList<SourceDocument>> entry : sourceMap.entrySet()) {
+            ArrayList<SourceDocument> list = entry.getValue();
+            Collections.sort(list, Collections.reverseOrder());
+            GTQuery gt = new GTQuery(entry.getKey());
+            for (int i = 0; i < list.size(); i++) {
+                SourceDocument sd = list.get(i);
+                sd.position = i + 1;
+                gt.add(sd);
+            }
+            map.put(gt.queryid, gt);
+        }
+
+        return map;
+    }
+
+    public static ResultSet loadResults(Datafile file) {
+        file.setBufferSize(1000000);
+        HashMapList<String, SourceDocument> sourceMap = new HashMapList(11100);
+        SimilarityFile similarityFile = new SimilarityFile(file);
+        for (SimilarityWritable similarity : similarityFile) {
+            SourceDocument sd = new SourceDocument(similarity);
+            sourceMap.add(similarity.query, sd);
         }
 
         ResultSet map = new ResultSet(11100); // prevent rehashing
         for (Map.Entry<String, ArrayList<SourceDocument>> entry : sourceMap.entrySet()) {
             ArrayList<SourceDocument> list = entry.getValue();
             Collections.sort(list, Collections.reverseOrder());
-            SuspiciousDocument gt = new SuspiciousDocument(entry.getKey());
-            for (int i = 0; i < list.size(); i++) {
-                SourceDocument sd = list.get(i);
-                sd.position = i + 1;
-                gt.add(sd);
-            }
-            map.put(gt.docid, gt);
+            ResultQuery gt = new ResultQuery(entry.getKey());
+            gt.retrievedDocuments = list;
+            map.put(gt.queryid, gt);
         }
 
         return map;
     }
 
-    public static class ResultSet extends FHashMap<String, SuspiciousDocument> {
+    public static class GTMap extends FHashMap<String, GTQuery> {
+
+        public GTMap() {
+            super();
+        }
+
+        public GTMap(int size) {
+            super(size);
+        }
+
+        public GTMap(Map<String, GTQuery> map) {
+            super(map);
+        }
+    }
+
+    public static class ResultSet extends HashMap<String, ResultQuery> {
 
         public ResultSet() {
             super();
@@ -196,26 +202,26 @@ public abstract class Metric {
             super(size);
         }
 
-        public ResultSet(Map<String, SuspiciousDocument> map) {
+        public ResultSet(Map<String, ResultQuery> map) {
             super(map);
         }
     }
 
     public static class Document {
 
-        public String docid;
+        public String queryid;
 
         public String toString() {
-            return "Doc " + docid;
+            return "Doc " + queryid;
         }
     }
 
-    public static class SuspiciousDocument extends Document {
+    public static class GTQuery extends ResultQuery {
 
         public FHashMap<String, SourceDocument> relevantDocuments = new FHashMap();
 
-        public SuspiciousDocument(String docid) {
-            this.docid = docid;
+        public GTQuery(String docid) {
+            super(docid);
         }
 
         public SourceDocument getSourceDocument(String sourceDocumentId) {
@@ -223,7 +229,7 @@ public abstract class Metric {
         }
 
         public SourceDocument getSourceDocument(SourceDocument sourceDocument) {
-            return relevantDocuments.get(sourceDocument.docid);
+            return relevantDocuments.get(sourceDocument.queryid);
         }
 
         /**
@@ -233,7 +239,31 @@ public abstract class Metric {
          * @param similarity
          */
         public void add(SourceDocument source) {
-            relevantDocuments.put(source.docid, source);
+            super.add(source);
+            relevantDocuments.put(source.queryid, source);
+        }
+    }
+
+    public static class ResultQuery extends Document {
+
+        public ArrayList<SourceDocument> retrievedDocuments = new ArrayList();
+
+        public ResultQuery(String docid) {
+            this.queryid = docid;
+        }
+
+        public int size() {
+            return retrievedDocuments.size();
+        }
+        
+        /**
+         * Add a nearest neighbor from the ground truth, unless already k
+         * nearest neighbors were registered for this document.
+         *
+         * @param similarity
+         */
+        public void add(SourceDocument source) {
+            retrievedDocuments.add(source);
         }
     }
 
@@ -245,7 +275,7 @@ public abstract class Metric {
 
         public SourceDocument(
                 SimilarityWritable similarity) {
-            this.docid = similarity.source;
+            this.queryid = similarity.source;
             this.measureSimilarity = similarity.measureSimilarity;
             this.indexSimilarity = similarity.indexSimilarity;
         }

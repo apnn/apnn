@@ -39,8 +39,6 @@ public class ShingleJob {
                 conf.get("vocabulary")
         );
         
-        job.useDocumentContent();
-
         job.waitForCompletion(true);
     }
 

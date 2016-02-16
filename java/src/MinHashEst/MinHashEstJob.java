@@ -2,10 +2,8 @@ package MinHashEst;
 
 import MinHash.MinHashJob;
 import SimilarityFunction.CosineSimilarityTFIDF;
-import TestGenericMR.TestGenericMap;
-import TestGenericMR.TestGenericReduce;
-import io.github.htools.lib.Log;
 import io.github.htools.hadoop.Conf;
+import io.github.htools.lib.Log;
 
 /**
  * Computes the cosine similarity between all suspicious and source documents of

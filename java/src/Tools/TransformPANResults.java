@@ -6,7 +6,7 @@ import io.github.htools.hadoop.Conf;
 import io.github.htools.io.Datafile;
 import io.github.htools.io.HDFSPath;
 import io.github.htools.lib.Log;
-import java.io.IOException;
+
 import java.util.ArrayList;
 
 /**
@@ -24,7 +24,7 @@ public class TransformPANResults {
             f.setBufferSize(1000000);
             ArrayList<SimilarityWritable> list = new ArrayList();
             for (SimilarityWritable w : f) {
-                w.id = Integer.toString(Integer.parseInt(w.id));
+                w.query = Integer.toString(Integer.parseInt(w.query));
                 w.source = Integer.toString(Integer.parseInt(w.source));
                 list.add(w);
             }
